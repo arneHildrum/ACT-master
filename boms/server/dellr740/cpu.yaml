@@ -1,0 +1,9 @@
+name: CPU device
+devices:
+  cpu:
+    area: 6.98 cm2
+    process: 28nm
+    n_ics: 2
+    fab_yield: 0.875
+    gpa: 95
+    fab_ci: coal

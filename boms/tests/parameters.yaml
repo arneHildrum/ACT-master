@@ -1,0 +1,13 @@
+name: Parameters test file
+description: Test file for validating parameters field support
+parameters:
+  model_override_1: value1
+  model_override_2: 42
+  nested_config:
+    setting_a: true
+    setting_b: 3.14
+devices:
+  dut:
+    model: logic
+    area: 10 mm2
+    process: 7nm

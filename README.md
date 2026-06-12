@@ -1,7 +1,8 @@
 # ACT: Architectural Carbon Modeling Tool
 
-Version: 2.0 <br>
-README Last Updated: 2/17/2025
+Version: 3.0 <br>
+README Last Updated: 05/04/2026
+
 
 ACT is an carbon modeling tool to enable carbon-aware design space exploration.
 ACT comprises an analytical, architectural carbon-footprint model and use-case dependent optimization metrics to estimate the carbon footprint of hardware.
@@ -12,22 +13,28 @@ If you use ACT for your research, please consider contributing the resulting sys
 
 ## Quick Start
 
-To get started, first clone [ACT](https://github.com/facebookresearch/ACT) and make sure you have the following third-party Python dependencies:
-* [pint](https://pint.readthedocs.io/en/stable/) - `pip install pint`
-* [pyyaml](https://pypi.org/project/PyYAML/) - `pip install pyyaml`
-* Make sure you have Python 3.12.9
-ACT can be used either as a standalone binary or an API where you can program your codebase and use cases against.
-The code is built on `Python 3.12.9`.
+To get started, first clone [ACT](https://github.com/facebookresearch/ACT) and install:
+
+```bash
+pip install -e .
+```
+
+ACT requires Python 3.12+ and can be used either as a standalone command line tool or as a Python API.
 
 ### Command Line
 
-To use ACT as a standalone binary tool:
+```bash
+# Run with a sample server configuration
+python -m act.act -m boms/server/dellr740/top.yaml
 
-1. Go to the ACT root directory
-2. From the command line, run `act_model.py -m boms/dellr740.yaml` which should run an existing specification for the Dell power edge server
-3. This should export the results to a report yaml file where you can inspect the results
+# Run with operational power and lifetime
+python -m act.act -m boms/server/dellr740/top.yaml --op-power "500 W" --life-cycle "3 year"
 
-For the full list of command line arguments, use `python -m act.act_model --help`.
+# Run with design space exploration
+python -m act.act -m boms/server/dellr740/top.yaml --dse
+```
+
+For the full list of command line arguments, use `python -m act.act --help`.
 
 ### Python API
 
@@ -93,25 +100,8 @@ materials:
 ```
 
 You can either write your own similar bill of materials or start from one of the existing bill of materials in the `boms` directory.
-Once you have your bill of materials specification, you can run it with ACT using `python -m act.act_model -m <your bom yaml>`.
-For instance, `python -m act.act_model -m act/boms/dellr740.yaml` will run one of the stock Dell R740 models.
-
-## Codebase Structure
-
-The top level binary is ACTModel.py which orchestrates the calculations across the underlying embodied architectural carbon model for logic, memory, storage, etc.
-
-ACT currently supports the following models:
-* `logic_model.py`: Application processor and digital logic embodied carbon model
-* `dram_model.py`: DRAM embodied carbon capacity-based models
-* `ssd_model.py`: SSD embodied carbon capacity-based models
-* `hdd_model.py`: HDD embodied carbon capacity-based models
-* `op_model.py`: Operational emissions model
-* `cap_model.py`: Capacitor manufacturing embodied carbon model
-* `materials_model.py`: Frame and enclosure materials embodied carbon model
-* `pcb_model.py`: Printed circuit board area-based embodied carbon model
-* `battery_model.py`: Battery capacity-based embodied carbon model
-
-Data for the architectural carbon model draw from sustainability literature and industry sources (additional information can be found in [our paper](https://dl.acm.org/doi/10.1145/3470496.3527408), see details below).
+Once you have your bill of materials specification, you can run it with ACT using `python -m act.act -m <your bom yaml>`.
+For instance, `python -m act.act -m boms/server/dellr740/top.yaml` will run one of the stock Dell R740 models.
 
 ## Carbon Footprint Modeling Details
 
@@ -193,4 +183,4 @@ series = {ISCA '22}
 ```
 
 # License
-ACT is MIT licensed, as found in the LICENSE file.
+ACT is licensed under the Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0) license, as found in the LICENSE file.

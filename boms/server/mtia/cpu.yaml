@@ -1,0 +1,17 @@
+name: CPU placeholder for MTIA server
+description: Generic placeholder CPU device for the MTIA 2i server BOM. The exact host CPU is not publicly disclosed in the MTIA paper, so generic defaults are used here.
+devices:
+  cpu_die:
+    model: logic
+    area: 12 * 72 mm2
+    fab_ci: taiwan
+    fab_yield: 0.875
+    process: 5nm
+    n_ics: 1
+  io_die:
+    model: logic
+    area: 397 mm2
+    fab_ci: taiwan
+    fab_yield: 0.875
+    process: 5nm
+    n_ics: 1

@@ -1,0 +1,8 @@
+name: Secondary DRAM
+devices:
+  dram:
+    model: dram
+    process: ddr3_50nm
+    n_ics: 19
+    size: 68 GB
+    fab_yield: 0.875

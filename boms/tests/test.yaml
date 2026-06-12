@@ -1,0 +1,46 @@
+name: Test bill of material
+imports:
+  subsystem: imported.yaml
+expected_carbon: 32652.239614670092 g
+devices:
+  dut:
+    area: 10 mm2
+    fab_yield: 0.87
+    process: 14nm
+    n_ics: 1
+    fab_ci: taiwan
+  dram:
+    model: dram
+    size: 1 GB
+    fab_yield: 0.9
+    process: ddr4_10nm
+  ssd:
+    model: flash
+    size: 2 TB
+    fab_yield: 0.88
+    process: nand_10nm
+  hdd:
+    model: hdd
+    size: 1 TB
+    fab_yield: 0.92
+    process: BarraCuda
+  cap0:
+    model: capacitor
+    type: mlcc
+    n_ics: 2
+    weight: 0.03 mg
+  fasteners:
+    model: materials
+    type: steel
+    weight: 0.6 g
+  heatsink:
+    model: materials
+    type: heatsink
+    weight: 100 g
+  pcb:
+    model: pcb
+    area: 10 cm2
+    layers: 4
+  battery:
+    model: battery
+    capacity: 5000 mWh

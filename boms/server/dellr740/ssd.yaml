@@ -1,0 +1,7 @@
+name: SSD device definition
+devices:
+  ssd:
+    model: flash
+    process: nand_30nm
+    n_ics: 13
+    size: 3840 GB

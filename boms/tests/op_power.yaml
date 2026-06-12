@@ -1,0 +1,10 @@
+name: Test bill of material
+op_power: 125 mW
+op_ci: japan
+devices:
+  dut:
+    area: 10 mm2
+    fab_yield: 0.87
+    process: 14nm
+    n_ics: 1
+    fab_ci: taiwan

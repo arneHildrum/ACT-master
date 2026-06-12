@@ -1,0 +1,10 @@
+name: MTIA chip model
+description: Meta MTIA chip based on Table 2 of https://dl.acm.org/doi/pdf/10.1145/3695053.3731409
+devices:
+  asic:
+    area: 19.3 mm * 19.1 mm
+    process: 7nm
+    gpa: 95
+    fab_ci: taiwan
+    fab_yield: 0.875 # note: uses placeholder default fab yield
+    n_ics: 1

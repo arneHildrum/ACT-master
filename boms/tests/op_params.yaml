@@ -1,0 +1,17 @@
+name: Power operation parameters test
+description: Test that operational parameters propagate properly
+duty_cycle: 0.75 # default duty cycle to propagate
+life_cycle: 1.5 year # default device life cycle
+op_ci: usa # default operational CI
+op_year: 2016
+devices:
+  default_dev: # should get defaults from top level
+    model: power
+    power: 1 W
+  override_all:
+    model: power
+    power: 5 W
+    op_ci: south korea
+    duty_cycle: 0.66
+    life_cycle: 0.5 year
+    op_year: 2018
