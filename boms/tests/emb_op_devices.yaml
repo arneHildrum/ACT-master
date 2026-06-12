@@ -1,0 +1,13 @@
+name: Embodied and operational device test
+devices:
+  dut0:
+    model: logic
+    area: 10 mm2
+    process: 14nm
+    power: 100 W
+
+  dut1:
+    model: dram
+    size: 100 GB
+    process: ddr3_50nm
+    power: 5 W

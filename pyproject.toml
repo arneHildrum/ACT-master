@@ -1,0 +1,106 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "act-carbon"
+version = "3.0.0"
+description = "ACT: Architectural Carbon Modeling Tool for sustainability-driven hardware design exploration"
+readme = "README.md"
+license = {text = "CC-BY-NC-4.0"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Vincent T. Lee"},
+    {name = "Bilge Acun"},
+    {name = "Udit Gupta"},
+    {name = "Mariam Elgamal"},
+    {name = "Gage Hills"},
+    {name = "Gu-Yeon Wei"},
+    {name = "Hsien-Hsin S. Lee"},
+    {name = "David Brooks"},
+    {name = "Carole-Jean Wu"},
+]
+keywords = ["carbon", "sustainability", "computer-architecture", "design-space-exploration", "embodied-carbon"]
+classifiers = [
+    "Development Status :: 3 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: Free for non-commercial use",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "dash",
+    "dash-bootstrap-components",
+    "htmlark",
+    "jinja2",
+    "matplotlib",
+    "numpy",
+    "openpyxl",
+    "pandas",
+    "pint",
+    "plotly",
+    "prettytable",
+    "pyyaml",
+    "requests",
+    "scikit-learn",
+    "tabulate",
+]
+
+[project.optional-dependencies]
+test = [
+    "parameterized",
+]
+scripts = [
+    "kaleido",
+]
+
+[project.scripts]
+act = "act.act:main"
+
+[project.urls]
+Homepage = "https://github.com/facebookresearch/ACT"
+
+[tool.setuptools]
+packages = [
+    "act",
+    "act.core",
+    "act.core.dse",
+    "act.core.gui",
+    "act.core.gui.cards",
+    "act.core.gui.plots",
+    "act.core.metrics",
+    "act.core.models",
+    "act.core.scaling",
+    "act.core.utils",
+    "act.scripts",
+    "act.tests",
+    "act.tools",
+]
+
+[tool.setuptools.package-dir]
+"act" = "."
+"act.core" = "core"
+"act.core.dse" = "core/dse"
+"act.core.gui" = "core/gui"
+"act.core.gui.cards" = "core/gui/cards"
+"act.core.gui.plots" = "core/gui/plots"
+"act.core.metrics" = "core/metrics"
+"act.core.models" = "core/models"
+"act.core.scaling" = "core/scaling"
+"act.core.utils" = "core/utils"
+"act.scripts" = "scripts"
+"act.tests" = "tests"
+"act.tools" = "tools"
+
+[tool.setuptools.package-data]
+act = [
+    "models/**/*",
+    "assets/**/*.csv",
+    "boms/**/*.yaml",
+    "boms/**/*.xlsx",
+    "configs/**/*.yaml",
+    "core/gui/assets/**",
+]

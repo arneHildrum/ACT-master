@@ -1,0 +1,17 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
+name: Battery Carbon Intensity Model
+# Carbon intensity per unit capacity for lithium-ion battery cathode chemistries
+# based on https://www.nature.com/articles/s41467-024-54634-y
+batteries:
+  # nickel manganese cobalt cathode
+  # The data for NMC is 59-115 kg / kWh, using 87 as the midpoint
+  NMC: 87 kg / kWh
+
+  # lithium iron phosphate cathode
+  # The data for LFP spans 54 to 69 kgCO2e kWh-1 (Fig. 3a), using 61.5 as the midpoint
+  LFP: 61.5 kg / kWh

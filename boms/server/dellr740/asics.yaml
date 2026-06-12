@@ -1,0 +1,54 @@
+name: ASIC Accelerators Subsystem
+description: ASIC accelerators for server configurations
+macros:
+  NUM_ASICS_PER_CPU: 0
+  ASIC_FILE: ../mtia/mtia2.yaml
+imports:
+#if $(NUM_ASICS_PER_CPU) > 0
+  asic0: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 1
+  asic1: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 2
+  asic2: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 3
+  asic3: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 4
+  asic4: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 5
+  asic5: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 6
+  asic6: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 7
+  asic7: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 8
+  asic8: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 9
+  asic9: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 10
+  asic10: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 11
+  asic11: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 12
+  asic12: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 13
+  asic13: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 14
+  asic14: $(ASIC_FILE)
+#endif
+#if $(NUM_ASICS_PER_CPU) > 15
+  asic15: $(ASIC_FILE)
+#endif

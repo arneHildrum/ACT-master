@@ -1,0 +1,11 @@
+name: Cost analysis with custom parameters test
+parameters:
+  DEFAULT_ELECTRICITY_COST: 0.25 USD/kWh
+  carbon_offset_cost: 10.0 USD/metric_ton
+devices:
+  logic0:
+    model: logic
+    process: 14nm
+    area: 9 mm2
+    cost: 65 USD
+    power: 60 W

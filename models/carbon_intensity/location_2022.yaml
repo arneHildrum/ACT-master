@@ -1,0 +1,18 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
+# carbon intensity of energy production by location
+"world"     : 301 g / kWh
+"india"     : 725 g / kWh
+"australia" : 597 g / kWh
+"taiwan"    : 583 g / kWh
+"singapore" : 495 g / kWh
+"usa"       : 380 g / kWh
+"europe"    : 295 g / kWh
+"brazil"    : 82 g / kWh
+"iceland"   : 28 g / kWh
+"japan"     : 485 g / kWh
+"south korea"     : 430 g / kWh

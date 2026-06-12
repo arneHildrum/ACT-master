@@ -1,0 +1,13 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
+name: Power scaling test
+compatible_with: tests/tech_scaling.yaml
+scaling_paths:
+  cpu:
+    process: 7nm
+  dram:
+    process: ddr3_40nm

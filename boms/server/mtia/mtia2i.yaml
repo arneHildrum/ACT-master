@@ -1,0 +1,47 @@
+name: MTIA 2i Server
+description: Meta MTIA 2i Server based on Section 3.4 of https://dl.acm.org/doi/pdf/10.1145/3695053.3731409. Note that some components are missing or substituted with generic defaults since there are no well-known models (ex., NICs, board components, etc.) or the exact part numbers are not publicly disclosed.
+macros:
+  CHIP_VARIANT: mtia2.yaml
+imports:
+  # 24 x MTIA2 accelerators per server
+  mtia_asic0: $(CHIP_VARIANT)
+  mtia_asic1: $(CHIP_VARIANT)
+  mtia_asic2: $(CHIP_VARIANT)
+  mtia_asic3: $(CHIP_VARIANT)
+  mtia_asic4: $(CHIP_VARIANT)
+  mtia_asic5: $(CHIP_VARIANT)
+  mtia_asic6: $(CHIP_VARIANT)
+  mtia_asic7: $(CHIP_VARIANT)
+  mtia_asic8: $(CHIP_VARIANT)
+  mtia_asic9: $(CHIP_VARIANT)
+  mtia_asic10: $(CHIP_VARIANT)
+  mtia_asic11: $(CHIP_VARIANT)
+  mtia_asic12: $(CHIP_VARIANT)
+  mtia_asic13: $(CHIP_VARIANT)
+  mtia_asic14: $(CHIP_VARIANT)
+  mtia_asic15: $(CHIP_VARIANT)
+  mtia_asic16: $(CHIP_VARIANT)
+  mtia_asic17: $(CHIP_VARIANT)
+  mtia_asic18: $(CHIP_VARIANT)
+  mtia_asic19: $(CHIP_VARIANT)
+  mtia_asic20: $(CHIP_VARIANT)
+  mtia_asic21: $(CHIP_VARIANT)
+  mtia_asic22: $(CHIP_VARIANT)
+  mtia_asic23: $(CHIP_VARIANT)
+  # note: generic placeholder CPU; the exact host CPU is not publicly disclosed
+  cpu0: cpu.yaml
+  cpu1: cpu.yaml
+devices:
+  # mtia2 uses 12 x 96 GB LPDDR5 DRAM per CPU but since the emissions model for this is missing use a placeholder for now
+  dram0:
+    model: dram
+    size: 12 * 96 GB
+    fab_yield: 0.875
+    process: ddr4_10nm
+    n_ics: 12
+  dram1:
+    model: dram
+    size: 12 * 96 GB
+    fab_yield: 0.875
+    process: ddr4_10nm
+    n_ics: 12

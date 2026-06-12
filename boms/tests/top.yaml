@@ -1,0 +1,18 @@
+name: Hierarchical import test top level
+imports:
+  mid: mid.yaml
+devices:
+  top_cap:
+    model: capacitor
+    type: mlcc
+    n_ics: 1
+    weight: 0.1g
+  top_si:
+    model: logic
+    area: 5 mm2
+    fab_ci: taiwan
+    process: 14nm
+  top_mat:
+    model: materials
+    type: steel
+    weight: 0.2 g

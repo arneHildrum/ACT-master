@@ -1,0 +1,33 @@
+name: Technology node rounding test bill of materials
+description: Tests rounding of unavailable technology nodes to the next largest available node
+devices:
+  logic_exact:
+    model: logic
+    area: 100 mm2
+    process: 14nm
+    n_ics: 1
+  logic_15nm:
+    model: logic
+    area: 100 mm2
+    process: 15nm
+    n_ics: 1
+  logic_12nm:
+    model: logic
+    area: 100 mm2
+    process: 12nm
+    n_ics: 1
+  logic_6nm:
+    model: logic
+    area: 100 mm2
+    process: 6nm
+    n_ics: 1
+  logic_4nm:
+    model: logic
+    area: 100 mm2
+    process: 4nm
+    n_ics: 1
+  logic_1_5nm:
+    model: logic
+    area: 100 mm2
+    process: 1.5nm
+    n_ics: 1

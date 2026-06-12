@@ -1,0 +1,13 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
+name: Materials Carbon Intensity Model
+materials:
+  # https://worldsteel.org/climate-action/climate-change-and-the-production-of-iron-and-steel/
+  steel: 1.89 kg / kg
+
+  # heatsink carbon manufacturing cost per kg of heatsink
+  heatsink: 21.7 kg / kg
