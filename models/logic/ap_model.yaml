@@ -1,0 +1,11 @@
+# From public release of imec.netzero data (https://netzero.imec-int.com/)
+#
+# Application processor manufacturing estimates
+28nm: 3.594044444 kg / cm2
+20nm: 3.607066667 kg / cm2
+14nm: 3.800444444 kg / cm2
+10nm: 4.268088889 kg / cm2
+7nm: 5.482044444 kg / cm2
+7nm_EUV: 4.941288889 kg / cm2
+5nm: 5.731822222 kg / cm2
+3nm: 6.399777778 kg / cm2

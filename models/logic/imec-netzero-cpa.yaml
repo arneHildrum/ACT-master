@@ -1,0 +1,10 @@
+# From public release of imec.netzero data (https://netzero.imec-int.com/)
+#
+# carbon per unit area from publicly available imec.netzero database
+"28nm" : 0.91 kg / cm2
+"20nm" : 0.91 kg / cm2
+"14nm" : 0.97 kg / cm2
+"10nm" : 1.09 kg / cm2
+"7nm"  : 1.44 kg / cm2
+"5nm"  : 1.54 kg / cm2
+"3nm"  : 1.75 kg / cm2

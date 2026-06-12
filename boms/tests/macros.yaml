@@ -1,0 +1,10 @@
+name: Macro test
+macros:
+  AREA: 25 mm2
+  PROCESS: 5nm
+devices:
+  dut:
+    model: logic
+    area: $(AREA)
+    fab_ci: taiwan
+    process: $(PROCESS)

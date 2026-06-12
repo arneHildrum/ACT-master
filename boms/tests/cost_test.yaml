@@ -1,0 +1,16 @@
+name: Cost analysis test
+devices:
+  logic0:
+    model: logic
+    process: 14nm
+    area: 9 mm2
+    cost: 65 USD
+    power: 60 W
+
+  # coverage over using $ instead of USD
+  logic1:
+    model: logic
+    process: 7nm
+    area: 8 mm2
+    cost: 50 $
+    power: 65 W

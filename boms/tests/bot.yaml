@@ -1,0 +1,16 @@
+name: Hierarchical import test bot level
+devices:
+  bot_si:
+    model: logic
+    area: 5 mm2
+    fab_ci: taiwan
+    process: 14nm
+  bot_cap:
+    model: capacitor
+    type: mlcc
+    n_ics: 1
+    weight: 0.1g
+  bot_mat:
+    model: materials
+    type: steel
+    weight: 0.2 g

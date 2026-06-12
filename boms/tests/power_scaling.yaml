@@ -1,0 +1,18 @@
+name: Logic Power Scaling TEst
+devices:
+  cpu:
+    model: logic
+    area: 213 mm2
+    process: 14nm
+    built: 2017
+    n_ics: 1
+    fab_ci: usa # Global Foundries
+    power: 65 W
+  dram: # this device should not scale
+    model: dram
+    size: 1 GB
+    process: ddr3_50nm
+    built: 2019
+    n_ics: 1
+    fab_ci: usa
+    power: 10 W

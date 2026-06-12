@@ -1,0 +1,24 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
+name: CI scaling configuration file sample
+
+# specify the file path that this tech scaling configuration works with
+compatible_with: server/dellr740/top.yaml
+
+# specify which device paths to scale and to what
+scaling_paths:
+  # only scale specific logic instance to 14 nm
+  cpu0.main:
+    year: 2026
+
+  # scale all SSDs to 20nm
+  ssd:
+    year: 2024
+
+  # scale only dram main2
+  dram.main2:
+    year: 2030

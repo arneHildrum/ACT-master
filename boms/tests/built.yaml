@@ -1,0 +1,27 @@
+name: Device build date test
+description: Test that the device built year properly propagates to the CI values
+devices:
+  logic_2023:
+    model: logic
+    area: 1 mm2
+    process: 7nm
+    built: 2023
+    fab_ci: taiwan
+  logic_2022:
+    model: logic
+    area: 1 mm2
+    process: 7nm
+    built: 2022
+    fab_ci: taiwan
+  cap_2023:
+    model: capacitor
+    type: mlcc
+    weight: 1 g
+    fab_ci: japan
+    built: 2023
+  cap_2022:
+    model: capacitor
+    type: mlcc
+    weight: 1 g
+    fab_ci: japan
+    built: 2022

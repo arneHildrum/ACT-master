@@ -1,0 +1,18 @@
+name: Hierarchical import test mid level
+imports:
+  bot: bot.yaml
+devices:
+  mid_si:
+    model: logic
+    area: 5 mm2
+    fab_ci: taiwan
+    process: 14nm
+  mid_cap:
+    model: capacitor
+    type: mlcc
+    n_ics: 1
+    weight: 0.1g
+  mid_mat:
+    model: materials
+    type: steel
+    weight: 0.2 g

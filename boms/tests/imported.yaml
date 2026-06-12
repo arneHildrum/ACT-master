@@ -1,0 +1,17 @@
+name: Test Imported BOM
+devices:
+  imported_si:
+    model: logic
+    area: 5 mm2
+    n_ics: 2
+    fab_ci: taiwan
+    process: 14nm
+  imported_cap:
+    model: capacitor
+    type: mlcc
+    n_ics: 1
+    weight: 0.1 g
+  imported_mat:
+    model: materials
+    type: steel
+    weight: 1 g

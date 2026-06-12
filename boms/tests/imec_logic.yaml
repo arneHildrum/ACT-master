@@ -1,0 +1,15 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
+name: IMEC Logic Model Test
+description: Test BOM for IMEC netzero CPA logic model
+devices:
+  chip:
+    model: imec_logic
+    process: 7nm
+    area: 100 mm2
+    n_ics: 1
+    fab_yield: 0.9

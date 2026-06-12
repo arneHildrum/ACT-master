@@ -1,0 +1,48 @@
+name: Manual model test
+devices:
+  manual.logic0:
+    model: manual
+    process: 14nm
+    fab_ci: taiwan
+    carbon: 10.45 kg
+    power: 10 W
+  manual.dram0:
+    model: manual
+    process: ddr3_30nm
+    fab_ci: usa
+    carbon: 20.5 kg
+    power: 9 W
+  manual.ssd0:
+    model: manual
+    process: nand_30nm
+    fab_ci: south korea
+    carbon: 40.5 kg
+    power: 8 W
+  manual.hdd0:
+    model: manual
+    process: BarraCuda2
+    fab_ci: usa
+    carbon: 10.5 kg
+    power: 7 W
+
+  # omitting the process should prevent scaling
+  manual.logic1:
+    model: manual
+    fab_ci: taiwan
+    carbon: 10.45 kg
+    power: 10 W
+  manual.dram1:
+    model: manual
+    fab_ci: usa
+    carbon: 20.5 kg
+    power: 9 W
+  manual.ssd1:
+    model: manual
+    carbon: 40.5 kg
+    fab_ci: south korea
+    power: 8 W
+  manual.hdd1:
+    model: manual
+    fab_ci: usa
+    carbon: 10.5 kg
+    power: 7 W

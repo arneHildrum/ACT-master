@@ -1,0 +1,21 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
+name: Supply chain relocation sample
+compatible_with: server/dellr740/top.yaml
+
+scaling_paths:
+  # move CPU0 manufacturing to USA
+  cpu0.main:
+    location: usa
+
+  # move all SSD manufacturing to China
+  ssd:
+    location: china
+
+  # move DRAM main2 source to Korea
+  dram.main2:
+    location: south korea

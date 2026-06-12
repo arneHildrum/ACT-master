@@ -1,0 +1,26 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
+name: Manual tech scaling configuration test
+scaling_paths:
+  manual.logic0:
+    process: 7nm
+  manual.dram0:
+    process: ddr4_10nm
+  manual.ssd0:
+    process: nand_20nm
+  manual.hdd0:
+    process: BarraCuda Pro
+
+  # these scale factors should be ignored as the manual models for these do not specify a process
+  manual.logic1:
+    process: 7nm
+  manual.dram1:
+    process: ddr4_10nm
+  manual.ssd1:
+    process: nand_20nm
+  manual.hdd1:
+    process: BarraCuda Pro

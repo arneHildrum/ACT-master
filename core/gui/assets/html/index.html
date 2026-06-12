@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+
+    <script src="plotly.min.js"></script>
+    <script src="jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="bootstrap.min.css"></link>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            background-color: #333;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+        }
+
+        td,
+        th {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        tr:hover {
+            background-color: #ddd;
+        }
+
+        th {
+            padding-top: 12px;
+            padding-bottom: 12px;
+            text-align: left;
+            background-color: #333;
+            color: white;
+        }
+
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>{{ page_title }}</h1>
+    </div>
+
+    <div class="container-fluid">
+    {{ tab_payload }}
+    </div>
+    <script src="bootstrap.min.js"></script>
+    <script>
+
+
+    document.addEventListener('shown.bs.tab', function(event) {
+    if (event.target.getAttribute('data-bs-toggle') === 'tab') {
+        var activePane = document.querySelector('.tab-pane.active');
+        var plotDivs = activePane.querySelectorAll('.plotly-graph-div');
+        plotDivs.forEach(function(div) {
+        Plotly.relayout(div, {autosize: true});
+        });
+    }
+    });
+
+    var options = {
+        width: 1000,
+        height: 800,
+        zoomWidth: 500,
+        scale: 1.5,
+        offset: {vertical: -600, horizontal: 0},
+        zoomPosition: "bottom",
+    };
+    var containers = document.getElementsByClassName('dotContainer');
+    for (const container of containers) {
+        window['imageZoom'] = new ImageZoom(container, options);
+    }
+
+    </script>
+</script>
+</body>
+
+</html>

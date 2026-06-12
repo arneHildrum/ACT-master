@@ -1,0 +1,109 @@
+name: Dell Power Edge R740 Server Materials Model
+description: Materials model for Dell R740 from https://corporate.delltechnologies.com/content/dam/digitalassets/active/en/unauth/data-sheets/products/servers/lca_poweredge_r740.pdf ported from ACT
+expected_carbon: 1523137.6914285717 gram
+macros:
+  NUM_CPUS: 2
+  NUM_SSDS: 8
+  NUM_DRAMS: 12
+  ENABLE_SECONDARY_SSD: True
+  ENABLE_SECONDARY_DRAM: True
+  CPU_DEVICE: cpu.yaml
+  SSD_DEVICE: ssd.yaml
+  DRAM_DEVICE: dram.yaml
+  NUM_ASICS_PER_CPU: 0
+  ASIC_FILE: ../mtia/mtia2.yaml
+imports:
+# primary CPUs
+#if $(NUM_CPUS) > 0
+  cpu.main0: $(CPU_DEVICE)
+#endif
+#if $(NUM_CPUS) > 1
+  cpu.main1: $(CPU_DEVICE)
+#endif
+
+# primary SSDs
+#if $(NUM_SSDS) > 0
+  ssd.main0: $(SSD_DEVICE)
+#endif
+#if $(NUM_SSDS) > 1
+  ssd.main1: $(SSD_DEVICE)
+#endif
+#if $(NUM_SSDS) > 2
+  ssd.main2: $(SSD_DEVICE)
+#endif
+#if $(NUM_SSDS) > 3
+  ssd.main3: $(SSD_DEVICE)
+#endif
+#if $(NUM_SSDS) > 4
+  ssd.main4: $(SSD_DEVICE)
+#endif
+#if $(NUM_SSDS) > 5
+  ssd.main5: $(SSD_DEVICE)
+#endif
+#if $(NUM_SSDS) > 6
+  ssd.main6: $(SSD_DEVICE)
+#endif
+#if $(NUM_SSDS) > 7
+  ssd.main7: $(SSD_DEVICE)
+#endif
+#if $(ENABLE_SECONDARY_SSD)
+  ssd.secondary_ssd: secondary_ssd.yaml
+#endif
+#if $(ENABLE_SECONDARY_DRAM)
+  ssd.secondary_dram: secondary_dram.yaml
+#endif
+
+# primary DRAM modules
+#if $(NUM_DRAMS) > 0
+  dram.main0: $(DRAM_DEVICE)
+#endif
+#if $(NUM_DRAMS) > 1
+  dram.main1: $(DRAM_DEVICE)
+#endif
+#if $(NUM_DRAMS) > 2
+  dram.main2: $(DRAM_DEVICE)
+#endif
+#if $(NUM_DRAMS) > 3
+  dram.main3: $(DRAM_DEVICE)
+#endif
+#if $(NUM_DRAMS) > 4
+  dram.main4: $(DRAM_DEVICE)
+#endif
+#if $(NUM_DRAMS) > 5
+  dram.main5: $(DRAM_DEVICE)
+#endif
+#if $(NUM_DRAMS) > 6
+  dram.main6: $(DRAM_DEVICE)
+#endif
+#if $(NUM_DRAMS) > 7
+  dram.main7: $(DRAM_DEVICE)
+#endif
+#if $(NUM_DRAMS) > 8
+  dram.main8: $(DRAM_DEVICE)
+#endif
+#if $(NUM_DRAMS) > 9
+  dram.main9: $(DRAM_DEVICE)
+#endif
+#if $(NUM_DRAMS) > 10
+  dram.main10: $(DRAM_DEVICE)
+#endif
+#if $(NUM_DRAMS) > 11
+  dram.main11: $(DRAM_DEVICE)
+#endif
+
+#if $(NUM_ASICS_PER_CPU) > 0
+#if $(NUM_CPUS) > 0
+  cpu.asics0:
+    file: asics.yaml
+    macros:
+      NUM_ASICS_PER_CPU: $(NUM_ASICS_PER_CPU)
+      ASIC_FILE: $(ASIC_FILE)
+#endif
+#if $(NUM_CPUS) > 1
+  cpu.asics1:
+    file: asics.yaml
+    macros:
+      NUM_ASICS_PER_CPU: $(NUM_ASICS_PER_CPU)
+      ASIC_FILE: $(ASIC_FILE)
+#endif
+#endif

@@ -1,0 +1,7 @@
+name: Incomplete device test
+description: Test that validation properly fires against the missing fields
+devices:
+  bad_logic:
+    model: logic
+    process: 14nm
+    # should be missing the gpa and area which should throw a validation error

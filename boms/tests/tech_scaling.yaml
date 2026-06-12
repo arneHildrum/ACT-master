@@ -1,0 +1,55 @@
+name: Technology scaling test bill of materials
+devices:
+  logic.dut:
+    model: logic
+    area: 100 mm2
+    process: 14nm
+    gpa: 95
+    n_ics: 1
+  logic.unscaled:
+    model: logic
+    area: 125 mm2
+    process: 10nm
+    gpa: 97
+    n_ics: 1
+  dram.dut:
+    model: dram
+    size: 1 GB
+    process: ddr3_50nm
+    n_ics: 1
+  dram.unscaled:
+    model: dram
+    size: 1.25 GB
+    process: ddr3_50nm
+    n_ics: 1
+  hdd.dut:
+    model: hdd
+    size: 1 GB
+    process: BarraCuda
+    n_ics: 1
+  hdd.unscaled:
+    model: hdd
+    size: 1.25 GB
+    process: BarraCuda
+    n_ics: 1
+  flash.dut:
+    model: flash
+    size: 1 GB
+    process: nand_30nm
+    n_ics: 1
+  flash.unscaled:
+    model: flash
+    size: 1 GB
+    process: nand_30nm
+    n_ics: 1
+  # passives should be ignored
+  cap0:
+    model: capacitor
+    type: mlcc
+    n_ics: 2
+    weight: 100 mg
+  # materials should be ignored
+  fasteners:
+    model: materials
+    type: steel
+    weight: 1 kg
