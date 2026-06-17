@@ -1,7 +1,7 @@
 # ACT: Architectural Carbon Modeling Tool
 
 Version: 3.0 <br>
-README Last Updated: 05/04/2026
+README Last Updated: 06/12/2026
 
 
 ACT is an carbon modeling tool to enable carbon-aware design space exploration.
@@ -154,11 +154,25 @@ As examples we have provided two comparisons with ACT against life cycle analyse
 You can find some of the sample bill of materials for these analyses in the `act/boms` directory.
 
 # Link to the Paper
-To read the paper please visit this [link](https://dl.acm.org/doi/abs/10.1145/3470496.3527408)
+To read the paper please visit these links:
+* [ACT3](https://arxiv.org/abs/2606.16889)
+* [ACT](https://dl.acm.org/doi/abs/10.1145/3470496.3527408)
 
 
 # Citation
-If you use `ACT`, please cite us:
+If you use `ACT`, please cite the following papers:
+
+```
+@misc{lee2026architecturecarbontoolv3,
+      title={Architecture Carbon Tool v3: Enabling Sustainability-aware Silicon System Design Exploration}, 
+      author={Vincent T. Lee and Bilge Acun and Zachary Lewis and Carole-Jean Wu},
+      year={2026},
+      eprint={2606.16889},
+      archivePrefix={arXiv},
+      primaryClass={cs.AR},
+      url={https://arxiv.org/abs/2606.16889}, 
+}
+```
 
 ```
 @inproceedings{GuptaACT2022,
