@@ -4,3 +4,4 @@ __pycache__
 *.swo
 *.egg-info/
 latest_act_out
+results/*
