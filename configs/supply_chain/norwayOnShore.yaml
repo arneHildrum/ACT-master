@@ -1,0 +1,12 @@
+name: Onshoring fabrication supply chain in Norway
+compatible_with: ["server/dellr740/top.yaml"]
+scaling_paths:
+  ssd:
+    location: norway
+    year: 2024
+  dram:
+    location: norway
+    year: 2024
+  cpu:
+    location: norway
+    year: 2024

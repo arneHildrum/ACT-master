@@ -8,8 +8,11 @@ name: Onshoring fabrication supply chain
 compatible_with: ["server/dellr740/top.yaml"]
 scaling_paths:
   ssd:
-    location: usa
+    location: india
+    year: 2024
   dram:
-    location: usa
+    location: india
+    year: 2024
   cpu:
-    location: usa
+    location: india
+    year: 2024
