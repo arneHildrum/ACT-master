@@ -22,6 +22,50 @@ def get_parser():
     # operational CL args
     add_op_args(parser)
 
+    # YAML config files for DRAM and fabrication emissions with local power emissions calculated
+    parser.add_argument(
+        "--dram-energy-config",
+        type=str,
+        default=None,
+        help=(
+            "YAML file containing DRAM fabrication electricity "
+            "per unit capacity, such as kWh / GB."
+        ),
+    )
+
+    # YAML config files for DRAM and fabrication emissions without local power emissions calculated
+    parser.add_argument(
+        "--dram-non-electric-config",
+        type=str,
+        default=None,
+        help=(
+            "YAML file containing non-electric DRAM fabrication "
+            "emissions per unit capacity, such as g / GB."
+        ),
+    )
+
+    # YAML config files for SSD and fabrication emissions with local power emissions calculated
+    parser.add_argument(
+        "--ssd-energy-config",
+        type=str,
+        default=None,
+        help=(
+            "YAML file containing SSD fabrication electricity "
+            "per unit capacity, such as kWh / GB."
+        ),
+    )
+
+    # YAML config files for SSD and fabrication emissions without local power emissions calculated 
+    parser.add_argument(
+        "--ssd-non-electric-config",
+        type=str,
+        default=None,
+        help=(
+            "YAML file containing non-electric SSD fabrication "
+            "emissions per unit capacity, such as g / GB."
+        ),
+    )
+
     parser.add_argument(
         "-o",
         "--out-dir",
@@ -171,6 +215,10 @@ def get_clean_args(args):
         "test": args.test,
         "scaling_file": args.scaling_config,
         "use_legacy": args.legacy,
+        "dram_energy_config": args.dram_energy_config,
+        "dram_non_electric_config": args.dram_non_electric_config,
+        "ssd_energy_config": args.ssd_energy_config,
+        "ssd_non_electric_config": args.ssd_non_electric_config,
     }
 
     query_args = {
@@ -183,5 +231,5 @@ def get_clean_args(args):
         else None,
         "export_file": args.export_file,
     }
-
+    print("MODEL ARGS:", model_args)                                                                                                                        # Prints the model arguments for debugging purposes
     return model_args, query_args

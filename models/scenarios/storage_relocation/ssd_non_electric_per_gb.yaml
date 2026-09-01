@@ -1,0 +1,8 @@
+# Non-electric manufacturing emissions per unit of finished SSD/NAND
+# capacity.
+#
+# Replace this test value with a sourced value before producing research
+# results.
+
+# "nand_30nm": 0.0 g / GB
+"nand_30nm": 15.5 g / GB

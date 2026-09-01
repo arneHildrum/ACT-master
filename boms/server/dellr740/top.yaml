@@ -7,7 +7,7 @@ macros:
   NUM_DRAMS: 12
   ENABLE_SECONDARY_SSD: True
   ENABLE_SECONDARY_DRAM: True
-  CPU_DEVICE: cpu.yaml
+  CPU_DEVICE: cpu_india.yaml
   SSD_DEVICE: ssd.yaml
   DRAM_DEVICE: dram.yaml
   NUM_ASICS_PER_CPU: 0

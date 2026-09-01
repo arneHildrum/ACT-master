@@ -6,5 +6,3 @@ devices:
     n_ics: 19
     size: 68 GB
     fab_yield: 0.875
-    fab_ci: india
-    built: 2024

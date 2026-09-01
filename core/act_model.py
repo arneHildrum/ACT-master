@@ -30,7 +30,7 @@ from act.core.models.materials_model import DEFAULT_MATERIALS_CONFIG, MaterialsM
 from act.core.models.op_model import OpModel
 from act.core.models.pcb_model import PCBModel
 from act.core.models.ssd_model import SSDModel
-from act.core.scaling.apply_ci_scaling import apply_ci_scaling
+#from act.core.scaling.apply_ci_scaling import apply_ci_scaling
 from act.core.scaling.scaling_config import ScalingConfig
 from act.core.scaling.tech_scaling_manager import TechScalingManager
 from act.core.utils.load_yaml_with_macros import load_yaml_with_macros
@@ -188,6 +188,56 @@ class ACTModel:
         # generate result data structure
         self.results = ACTResult()
 
+    def _apply_fab_location_overrides(self, bom) -> None:
+        if self.scaling_config is None:
+            return
+
+        location_aware_models = {
+            ModelType.LOGIC,
+            ModelType.DRAM,
+            ModelType.FLASH,
+        }
+
+        for dname, dev in bom.devices.items():
+            if dev.model not in location_aware_models:
+                continue
+
+            matches = [
+                (path, entry)
+                for path, entry
+                in self.scaling_config.scaling_paths.items()
+                if dname.startswith(path)
+                and (
+                    entry.location is not None
+                    or entry.year is not None
+                )
+            ]
+
+            if not matches:
+                continue
+
+            # Prefer the most specific matching path.
+            path, entry = max(
+                matches,
+                key=lambda x: len(x[0]),
+            )
+
+            old_ci = dev.fab_ci
+            old_year = dev.built
+
+            if entry.location is not None:
+                dev.fab_ci = entry.location
+
+            if entry.year is not None:
+                dev.built = entry.year
+
+            log.warning(
+                f"[FAB override] device={dname}, "
+                f"path={path}, "
+                f"{old_ci}@{old_year} -> "
+                f"{dev.fab_ci}@{dev.built}"
+            )
+
     def get_carbon(
         self,
         bom,
@@ -250,6 +300,8 @@ class ACTModel:
             bom, scaling_config=self.scaling_config
         )
 
+        self._apply_fab_location_overrides(bom)                                                                # Overwrite the fab_ci and built year for devices in the BOM based on scaling config if specified
+
         # calculate the total carbon
         carbon_results = self.carbon_analysis(bom)
         self.results.set_carbon_by_device(carbon_results)
@@ -260,12 +312,12 @@ class ACTModel:
             self.tech_scaling_manager.apply_tech_scaling(self)
 
             # apply carbon intensity scaling
-            apply_ci_scaling(
-                act_results=self.results,
-                bom=self.bom,
-                scaling_config=self.scaling_config,
-                ci_model=self.ci_model,
-            )
+            # apply_ci_scaling(
+            #     act_results=self.results,
+            #     bom=self.bom,
+            #     scaling_config=self.scaling_config,
+            #     ci_model=self.ci_model,
+            # )
 
             # re-calculate the result the results data structure
             self.results.recalculate()

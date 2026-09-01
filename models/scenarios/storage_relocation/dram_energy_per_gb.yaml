@@ -1,0 +1,7 @@
+# Manufacturing electricity used per unit of finished DRAM capacity.
+#
+# Replace the number below with a sourced value before producing research
+# results. This entry is for the Dell R740's ddr3_50nm process.
+
+# "ddr3_50nm": 1.0 kWh / GB
+"ddr3_50nm": 0.465552 kWh / GB

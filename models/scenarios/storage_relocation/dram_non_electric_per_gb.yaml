@@ -1,0 +1,10 @@
+# Non-electric manufacturing emissions per unit of finished DRAM capacity.
+#
+# Includes process gases, raw materials, chemicals and other manufacturing
+# contributions that should not be scaled with the electricity grid.
+#
+# Replace the number below with a sourced value before producing research
+# results.
+
+# "ddr3_50nm": 0.0 g / GB
+"ddr3_50nm": 300 g / GB

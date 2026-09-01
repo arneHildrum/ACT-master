@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from act.core.models.ci_model import CIModel
+from act.core.utils.logger import log
 
 
 def apply_ci_scaling(act_results, bom, scaling_config=None, ci_model=None):
@@ -54,4 +55,12 @@ def apply_ci_scaling(act_results, bom, scaling_config=None, ci_model=None):
             )
 
             assert ci_scale_factor >= 0
+            log.warning(
+                f"[CI scaling] device={dname}, "
+                f"path={path}, "
+                f"baseline={fab_ci}@{built}, "
+                f"target={new_fab_ci}@"
+                f"{new_year_built if new_year_built is not None else built}, "
+                f"factor={ci_scale_factor:.8f}"
+            )
             act_results.carbon_by_device[dname] *= ci_scale_factor

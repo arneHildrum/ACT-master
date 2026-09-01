@@ -1,0 +1,7 @@
+# Manufacturing electricity used per unit of finished SSD/NAND capacity.
+#
+# Replace this test value with a sourced value before producing research
+# results.
+
+# "nand_30nm": 1.0 kWh / GB
+"nand_30nm": 0.0240535 kWh / GB

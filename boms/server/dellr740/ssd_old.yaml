@@ -5,5 +5,3 @@ devices:
     process: nand_30nm
     n_ics: 13
     size: 3840 GB
-    fab_ci: india
-    built: 2024
