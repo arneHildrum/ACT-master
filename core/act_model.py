@@ -64,6 +64,11 @@ class ACTModel:
         scaling_file=None,
         scaling_config=None,
         use_legacy=False,
+
+        dram_energy_config=None,
+        dram_non_electric_config=None,
+        ssd_energy_config=None,
+        ssd_non_electric_config=None,
     ):
         """Initialize the ACT Model object.
 
@@ -108,8 +113,20 @@ class ACTModel:
         self.logic_model = LogicModel(
             ci_model=self.ci_model, use_legacy=self.use_legacy
         )
-        self.dram_model = DRAMModel(model_file=dram_config)
-        self.ssd_model = SSDModel()
+        #self.dram_model = DRAMModel(model_file=dram_config)
+        #self.ssd_model = SSDModel()
+        self.dram_model = DRAMModel(
+            model_file=dram_config,
+            energy_file=dram_energy_config,
+            non_electric_file=dram_non_electric_config,
+            ci_model=self.ci_model,
+        )
+
+        self.ssd_model = SSDModel(
+            energy_file=ssd_energy_config,
+            non_electric_file=ssd_non_electric_config,
+            ci_model=self.ci_model,
+        )
         self.hdd_model = HDDModel(model_files=hdd_config)
         self.op_model = OpModel(ci_model=self.ci_model, use_legacy=self.use_legacy)
         self.cap_model = CapacitorModel(model_file=cap_config, ci_model=self.ci_model)
@@ -154,6 +171,20 @@ class ACTModel:
             self.scaling_file = None
             self.scaling_config = None
 
+
+        """LOG Scaling and model information for debugging purposes"""
+        log.warning(f"Loaded scaling file: {self.scaling_file!r}")
+        log.warning(f"Loaded scaling config: {self.scaling_config!r}")
+        log.warning(
+            f"DRAM location-aware processes: "
+            f"{list(self.dram_model.energy_model)}"
+        )
+        log.warning(
+            f"SSD location-aware processes: "
+            f"{list(self.ssd_model.energy_model)}"
+        )
+        """LOG Scaling and model information for debugging purposes"""
+
         # generate result data structure
         self.results = ACTResult()
 
@@ -185,9 +216,9 @@ class ACTModel:
         # record start of analysis for run time regression purposes
         self.start_time = datetime.datetime.now()
 
-        self.op_power = resolve_op_power(cl_op_power=op_power, bom=bom)
-        self.op_ci = resolve_op_ci(cl_op_ci=op_ci, bom=bom)
-        self.op_year = resolve_op_year(                                                 # Previously was "self.op_year = self.results.op_power = resolve_op_year(" 
+        self.op_power = self.results.op_power = resolve_op_power(cl_op_power=op_power, bom=bom)
+        self.op_ci = self.results.op_ci = resolve_op_ci(cl_op_ci=op_ci, bom=bom)
+        self.op_year = self.results.op_year = resolve_op_year(                                                 # Previously was "self.op_year = self.results.op_power = resolve_op_year(" 
             cl_op_year=op_year, bom=bom
         )
         self.duty_cycle = self.results.duty_cycle = resolve_duty_cycle(

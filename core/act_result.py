@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import datetime
-import os
+import getpass
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
@@ -50,6 +50,9 @@ class ACTResult:
     metrics: dict = field(default_factory=dict)
     weight_unit: pint.Quantity = kg
     bom: Any = None
+    op_power: pint.Quantity = None                                                                                  # Added missing attribute for operational power
+    op_ci: str = None
+    op_year: int = None
 
     def _carbon_from_dict(self, data: dict[str, str]):
         """Convert a dictionary of string values to a Carbon object.
@@ -128,6 +131,9 @@ class ACTResult:
                 for cat, amt in self.carbon_by_category.items()
             },
             "metrics": {k: str(v) for k, v in self.metrics.items()},
+            "op_power": str(self.op_power),                                                                                             # Added operational power to the exported dictionary so it appears in the YAML output
+            "op_ci": self.op_ci,                                                                                                        # Added operational carbon intensity to the exported dictionary so it appears in the YAML output
+            "op_year": self.op_year,                                                                                                    # Added operational year to the exported dictionary so it appears in the YAML output                                               
         }
 
         return ret_dict
@@ -227,10 +233,12 @@ class ACTResult:
         # export the top level telementry into the top sheet
         top_sheet_data = [
             ["ACT Analysis Results"],
-            ["Author", os.environ["USER"]],
+            ["Author", getpass.getuser()],                                                                                    # Use for linux environment
             ["Report Generated", self.timestamp],
             ["Command Line Args", self.cl_args],
             ["Operating Power", str(self.op_power)],
+            ["Operating Carbon Intensity", self.op_ci],
+            ["Operating CI Year", self.op_year],
             ["Duty Cycle", self.duty_cycle],
             ["Hardware Lifetime", str(self.life_cycle)],
             ["Metrics"],
