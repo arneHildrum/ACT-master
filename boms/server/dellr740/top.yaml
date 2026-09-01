@@ -49,9 +49,7 @@ imports:
 #if $(ENABLE_SECONDARY_SSD)
   ssd.secondary_ssd: secondary_ssd.yaml
 #endif
-#if $(ENABLE_SECONDARY_DRAM)
-  ssd.secondary_dram: secondary_dram.yaml
-#endif
+
 
 # primary DRAM modules
 #if $(NUM_DRAMS) > 0
@@ -89,6 +87,9 @@ imports:
 #endif
 #if $(NUM_DRAMS) > 11
   dram.main11: $(DRAM_DEVICE)
+#endif
+#if $(ENABLE_SECONDARY_DRAM)
+  dram.secondary_dram: secondary_dram.yaml
 #endif
 
 #if $(NUM_ASICS_PER_CPU) > 0
