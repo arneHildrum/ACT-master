@@ -5,3 +5,4 @@ __pycache__
 *.egg-info/
 latest_act_out
 results/*
+!results/*.py
