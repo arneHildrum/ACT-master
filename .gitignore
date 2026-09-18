@@ -6,3 +6,4 @@ __pycache__
 latest_act_out
 results/*
 !results/*.py
+.venv/*
