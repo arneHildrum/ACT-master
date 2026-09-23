@@ -3,5 +3,8 @@
 # Replace the number below with a sourced value before producing research
 # results. This entry is for the Dell R740's ddr3_50nm process.
 
-# "ddr3_50nm": 1.0 kWh / GB
-"ddr3_50nm": 0.465552 kWh / GB
+# "ddr3_50nm": 1.0 kWh / GB             # All electric
+# "ddr3_50nm": 0.465552 kWh / GB        # Original split
+# "ddr3_50nm": 0.372442 kWh / GB          # Conservative split
+"ddr3_50nm": 0.558662 kWh / GB        # Informed split
+# "ddr3_50nm": 0.744883 kWh / GB        # Exaggerated split

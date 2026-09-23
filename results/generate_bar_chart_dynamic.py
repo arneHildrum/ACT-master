@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Plot absolute ACT carbon totals with Plotly, not Matplotlib.
+"""ACT carbon breakdown bar chart generator.
 
-Run in your results directory: python generateBarChart.py
+Run: python generateBarChart.py
 Or: python generateBarChart.py ./results --output ./figures/carbon_breakdown
 
 Dependencies: pip install "plotly>=6.1.1" "PyYAML>=6" "kaleido>=1"
@@ -63,7 +63,7 @@ class Report:
 
 
 def extract_grams(value: object) -> float:
-    """Parse an ACT mass, including scientific notation and explicit units.
+    """Parse an ACT emissions, including scientific notation and explicit units.
 
     Bare numeric values are treated as grams, as in the original script.
     Bad/negative/nonfinite values raise an error instead of silently becoming 0.
@@ -377,7 +377,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             group_gap=args.group_gap, title=args.title, totals=not args.no_total_labels,
             tick_angle=args.tick_angle,
         )
-        print("Plotting absolute emissions (no normalization). Label mapping:")
+        print("Plotting absolute emissions. Label mapping:")
         for r in reports:
             print(f"  {r.path.name} -> {r.country} / {r.scenario.replace(chr(10), ' ')}")
         return 0 if save_outputs(fig, reports, args) else 1

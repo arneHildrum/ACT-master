@@ -4,5 +4,8 @@
 # Replace this test value with a sourced value before producing research
 # results.
 
-# "nand_30nm": 0.0 g / GB
-"nand_30nm": 15.5 g / GB
+# "nand_30nm": 0.0 g / GB           # Fully electric
+# "nand_30nm": 15.5 g / GB          # Original split
+# "nand_30nm": 18.6 g / GB          # Conservative split
+"nand_30nm": 12.4 g / GB          # Informed split
+# "nand_30nm": 6.2 g / GB           # Exaggerated split
