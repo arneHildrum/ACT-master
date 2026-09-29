@@ -9,10 +9,10 @@ compatible_with: ["server/dellr740/top.yaml"]
 scaling_paths:
   ssd:
     location: usa
-    year: 2024
+    year: 2025
   dram:
     location: usa
-    year: 2024
+    year: 2025
   cpu:
     location: usa
-    year: 2024
+    year: 2025
