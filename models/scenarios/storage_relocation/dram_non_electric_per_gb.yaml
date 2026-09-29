@@ -9,5 +9,5 @@
 # "ddr3_50nm": 0.0 g / GB         # Fullly electric
 # "ddr3_50nm": 300 g / GB         # Original split
 # "ddr3_50nm": 360 g / GB         # Conservative split
-"ddr3_50nm": 240 g / GB         # Informed split
+# "ddr3_50nm": 240 g / GB         # Informed split
 # "ddr3_50nm": 120 g / GB         # Exaggerated split

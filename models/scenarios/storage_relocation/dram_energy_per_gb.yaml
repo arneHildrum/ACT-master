@@ -6,5 +6,5 @@
 # "ddr3_50nm": 1.0 kWh / GB             # All electric
 # "ddr3_50nm": 0.465552 kWh / GB        # Original split
 # "ddr3_50nm": 0.372442 kWh / GB          # Conservative split
-"ddr3_50nm": 0.558662 kWh / GB        # Informed split
+# "ddr3_50nm": 0.558662 kWh / GB        # Informed split
 # "ddr3_50nm": 0.744883 kWh / GB        # Exaggerated split
