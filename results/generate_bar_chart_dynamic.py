@@ -112,7 +112,7 @@ class Report:
 def extract_grams(value: object) -> float:
     """Parse an ACT emissions, including scientific notation and explicit units.
 
-    Bare numeric values are treated as grams, as in the original script.
+    Bare numeric values are treated as grams.
     Bad/negative/nonfinite values raise an error instead of silently becoming 0.
     """
     if isinstance(value, bool):
