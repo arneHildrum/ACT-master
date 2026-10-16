@@ -35,10 +35,9 @@ from pathlib import Path
 import plotly.graph_objects as go
 import yaml
 
-# Muted palette and thin outlines inspired by the supplied runtime chart.
-# Each category retains the same color across every country and scenario.
 COLORS = {"operation": "#DCD2EB", "fabrication": "#80B1BA", "packaging": "#C9BF9C"}
 OUTLINE = "#666666"
+RENEWABLE_LINE_COLOR = "#D62728"
 COMPONENTS = ("operation", "fabrication", "packaging")
 UNIT_GRAMS = {"g": 1.0, "kg": 1000.0, "t": 1_000_000.0}
 MASS_GRAMS = {
@@ -60,12 +59,14 @@ COUNTRY_NAMES = {
     "eu27": "EU27", "eu": "EU27", "europeanunion": "EU27",
     "europeanunion27": "EU27", "europeanunion27countries": "EU27",
     "france": "France", "fra": "France", "fr": "France",
+    "germany": "Germany", "deu": "Germany", "de": "Germany",
     "india": "India", "ind": "India", "in": "India",
     "japan": "Japan", "jpn": "Japan", "jp": "Japan",
     "nigeria": "Nigeria", "nga": "Nigeria", "ng": "Nigeria",
     "norway": "Norway", "norwegian": "Norway", "nor": "Norway", "no": "Norway",
     "russia": "Russia", "russianfederation": "Russia", "rus": "Russia", "ru": "Russia",
     "taiwan": "Taiwan", "twn": "Taiwan", "tw": "Taiwan",
+    "unitedkingdom": "United Kingdom", "uk": "United Kingdom", "gb": "United Kingdom", "UK": "United Kingdom", "gbr": "United Kingdom",
     "usa": "USA", "us": "USA", "unitedstates": "USA",
     "unitedstatesofamerica": "USA",
 }
