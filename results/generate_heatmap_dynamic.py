@@ -84,22 +84,18 @@ NUMBER_AND_UNIT = re.compile(
 )
 COUNTRY_NAMES = {
     "taiwan": "Taiwan", "twn": "Taiwan", "tw": "Taiwan",
-    "usa": "USA", "us": "USA", "unitedstates": "USA",
-    "unitedstatesofamerica": "USA",
-    "china": "China", "chn": "China", "cn": "China",
+    "usa": "USA", "us": "USA", "unitedstates": "USA", "unitedstatesofamerica": "USA",
+    "uk": "UK", "gb": "UK", "gbr": "UK", "unitedkingdom": "UK", "greatbritain": "UK", "england": "UK",
     "norway": "Norway", "nor": "Norway", "no": "Norway", "norwegian": "Norway",
     "france": "France", "fra": "France", "fr": "France",
     "germany": "Germany", "deu": "Germany", "de": "Germany",
-    "uk": "UK", "gb": "UK", "gbr": "UK", "unitedkingdom": "UK",
-    "greatbritain": "UK", "england": "UK",
+    "china": "China", "chn": "China", "cn": "China",
     "india": "India", "ind": "India", "in": "India",
 }
 LOCATION_KEYS = {
     "fabrication": ("fabrication_location", "fabrication_country", "fab_ci"),
     "operation": ("operation_location", "operation_country", "op_ci"),
 }
-# Match complete, role-tagged filenames only; never guess which untagged
-# country belongs to which axis. Long aliases are tried before short ones.
 _COUNTRY_RE = "(?:" + "|".join(sorted(COUNTRY_NAMES, key=len, reverse=True)) + ")"
 _FAB = rf"(?P<fabrication>{_COUNTRY_RE})"
 _OP = rf"(?P<operation>{_COUNTRY_RE})"
