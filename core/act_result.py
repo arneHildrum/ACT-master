@@ -22,6 +22,24 @@ SUMMARY_SHEET = "Summary"
 CARBON_SHEET = "Carbon"
 BOM_SHEET = "BOM"
 
+FAB_SPLIT_SHARES: dict[str, dict[str, float]] = {
+    "conservative": {
+        "EPA": 0.40,
+        "GPA": 0.20,
+        "MPA": 0.40,
+    },
+    "informed": {
+        "EPA": 0.60,
+        "GPA": 0.30,
+        "MPA": 0.10,
+    },
+    "exaggerated": {
+        "EPA": 0.80,
+        "GPA": 0.18,
+        "MPA": 0.02,
+    },
+}
+
 
 @dataclass
 class ACTResult:
@@ -53,6 +71,8 @@ class ACTResult:
     op_power: pint.Quantity = None                                                                                  # Added missing attribute for operational power
     op_ci: str = None
     op_year: int = None
+    fab_split_scenario: str | None = None
+    fab_split: dict = field(default_factory=dict)
 
     def _carbon_from_dict(self, data: dict[str, str]):
         """Convert a dictionary of string values to a Carbon object.
@@ -109,7 +129,7 @@ class ACTResult:
             export_file (str): Path to the output YAML file.
         """
         with open(export_file, "w") as handle:
-            yaml.dump(self.as_str_dict(), handle)
+            yaml.dump(self.as_str_dict(), handle, sort_keys=False)
 
     def as_str_dict(self) -> dict:
         """Convert results to a dictionary with string values.
@@ -133,8 +153,14 @@ class ACTResult:
             "metrics": {k: str(v) for k, v in self.metrics.items()},
             "op_power": str(self.op_power),                                                                                             # Added operational power to the exported dictionary so it appears in the YAML output
             "op_ci": self.op_ci,                                                                                                        # Added operational carbon intensity to the exported dictionary so it appears in the YAML output
-            "op_year": self.op_year,                                                                                                    # Added operational year to the exported dictionary so it appears in the YAML output                                               
+            "op_year": self.op_year,                                                                                                    # Added operational year to the exported dictionary so it appears in the YAML output
         }
+        if self.fab_split:
+            ret_dict["fab_split"] = {
+                "GPA": str(self.fab_split["GPA"]),
+                "EPA": str(self.fab_split["EPA"]),
+                "MPA": str(self.fab_split["MPA"]),
+            }
 
         return ret_dict
 
@@ -263,3 +289,73 @@ class ACTResult:
         """Recalculate total carbon and carbon by category from device data."""
         self.total_carbon = sum([v for k, v in self.carbon_by_device.items()])
         self.carbon_by_category = self.get_carbon_by_category()
+
+    def calculate_fab_split(
+        self,
+        scenario: str | None,
+    ) -> None:
+        """Split total fabrication emissions into EPA, GPA and MPA.
+
+        This is a reporting decomposition of the aggregate fabrication
+        result. It does not change the underlying ACT calculation.
+
+        Passing None clears any split left from an earlier calculation.
+        """
+
+        self.fab_split_scenario = scenario
+        self.fab_split = {}
+
+        if scenario is None:
+            return
+
+        scenario = scenario.casefold()
+
+        if scenario not in FAB_SPLIT_SHARES:
+            valid = ", ".join(FAB_SPLIT_SHARES)
+            raise ValueError(
+                f"Unknown fabrication split scenario {scenario!r}. "
+                f"Expected one of: {valid}."
+            )
+
+        if self.total_carbon is None:
+            raise RuntimeError(
+                "Cannot calculate the fabrication split before "
+                "total_carbon has been calculated."
+            )
+
+        shares = FAB_SPLIT_SHARES[scenario]
+
+        share_total = sum(shares.values())
+
+        if abs(share_total - 1.0) > 1e-12:
+            raise ValueError(
+                f"Fabrication shares for {scenario!r} sum to "
+                f"{share_total}, not 1.0."
+            )
+
+        fabrication = self.total_carbon.partial(
+            SourceType.FABRICATION
+        )
+
+        # Keep the requested YAML key order: GPA, EPA, MPA.
+        self.fab_split = {
+            "GPA": fabrication * shares["GPA"],
+            "EPA": fabrication * shares["EPA"],
+            "MPA": fabrication * shares["MPA"],
+        }
+
+        split_total = (
+            self.fab_split["GPA"]
+            + self.fab_split["EPA"]
+            + self.fab_split["MPA"]
+        )
+
+        difference = (
+            split_total - fabrication
+        ).to(fabrication.units).magnitude
+
+        if abs(difference) > 1e-8:
+            raise RuntimeError(
+                "Fabrication split does not sum to total "
+                f"fabrication emissions: difference={difference}"
+            )

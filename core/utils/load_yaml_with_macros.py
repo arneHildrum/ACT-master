@@ -103,7 +103,7 @@ def load_yaml_with_macros(
     if out_dir is not None and out_dir != "":
         preprocessed_file = os.path.basename(target_file)
         with open(out_dir + "/" + preprocessed_file, "w") as handle:
-            yaml.dump(yaml_data, handle)
+            yaml.dump(yaml_data, handle, sort_keys=False)
 
     if delete_macros:
         del yaml_data[MACROS]

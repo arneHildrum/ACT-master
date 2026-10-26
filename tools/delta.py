@@ -89,7 +89,7 @@ class ACTDelta:
             )
 
         # Print manifest file listing baseline and experiment output directories
-        manifest = yaml.dump(output_manifest)
+        manifest = yaml.dump(output_manifest, sort_keys=False)
         log.info(f"Output file locations:\n\n{manifest}\n\n")
 
     def check_raw_args(self):

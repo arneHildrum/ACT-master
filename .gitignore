@@ -8,4 +8,5 @@ results/*
 !results/*.py
 !results/*renewable_percentage*
 !results/*/*renewable_percentage*
+!results/release_generation_yearly_global.csv
 .venv/*

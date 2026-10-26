@@ -20,7 +20,22 @@ from pathlib import Path
 import plotly.graph_objects as go
 import yaml
 
-COLORS = {"operation": "#DCD2EB", "fabrication": "#80B1BA", "packaging": "#C9BF9C"}
+COLORS = {
+    "operation": "#DCD2EB",
+    "fabrication": "#80B1BA",
+    "GPA": "#B07AA1",
+    "EPA": "#80B1BA",
+    "MPA": "#7A9E7E",
+    "packaging": "#C9BF9C",
+}
+COMPONENT_LABELS = {
+    "operation": "Operation",
+    "fabrication": "Fabrication",
+    "GPA": "GPA",
+    "EPA": "EPA",
+    "MPA": "MPA",
+    "packaging": "Packaging",
+}
 OUTLINE = "#666666"
 RENEWABLE_LINE_COLOR = "#D62728"
 CARBON_INTENSITY_LINE_COLOR = RENEWABLE_LINE_COLOR
@@ -31,7 +46,11 @@ CARBON_INTENSITY_FIELDS = {
     "normalized": ("normalized", "value"),
     "unnormalized": ("unnormalized", "carbon_intensity_g_per_kwh"),
 }
-COMPONENTS = ("operation", "fabrication", "packaging")
+DEFAULT_COMPONENTS = ("operation", "fabrication", "packaging")
+BREAKDOWN_COMPONENTS = ("operation", "GPA", "EPA", "MPA", "packaging")
+ALL_COMPONENTS = tuple(dict.fromkeys(DEFAULT_COMPONENTS + BREAKDOWN_COMPONENTS))
+# Backwards-compatible alias for callers that import COMPONENTS.
+COMPONENTS = DEFAULT_COMPONENTS
 UNIT_GRAMS = {"g": 1.0, "kg": 1000.0, "t": 1_000_000.0}
 MASS_GRAMS = {
     "": 1.0, "g": 1.0, "gram": 1.0, "grams": 1.0,
@@ -462,7 +481,8 @@ def read_label_overrides(path: Path | None) -> dict:
 
 
 def load_reports(directory: Path, labels: Mapping, patterns: Sequence[str],
-                 skip_invalid: bool = False) -> list[Report]:
+                 skip_invalid: bool = False, *, breakdown: bool = False,
+                 components: Sequence[str] = DEFAULT_COMPONENTS) -> list[Report]:
     if not directory.is_dir():
         raise ValueError(f"results directory does not exist: {directory}")
     files = sorted(
@@ -479,12 +499,61 @@ def load_reports(directory: Path, labels: Mapping, patterns: Sequence[str],
                 print(f"Skipping non-report YAML: {path.name}", file=sys.stderr)
                 continue
             total = data["total_carbon"]
-            if not isinstance(total, Mapping) or not any(c in total for c in COMPONENTS):
-                raise ValueError("total_carbon must contain named emission categories")
-            grams = {c: extract_grams(total.get(c, 0)) for c in COMPONENTS}
-            for key in set(total) - set(COMPONENTS):
+            if not isinstance(total, Mapping):
+                raise ValueError("total_carbon must be a mapping")
+            missing_total = [name for name in DEFAULT_COMPONENTS if name not in total]
+            if missing_total:
+                raise ValueError(
+                    "total_carbon is missing required categories: "
+                    + ", ".join(missing_total)
+                )
+            for key in set(total) - set(DEFAULT_COMPONENTS):
                 if extract_grams(total[key]) != 0:
-                    raise ValueError(f"non-zero extra category {key!r}; add it to COMPONENTS and COLORS first")
+                    raise ValueError(
+                        f"non-zero extra total_carbon category {key!r}; "
+                        "add explicit chart support before plotting it"
+                    )
+
+            if breakdown:
+                fab_split = data.get("fab_split")
+                if not isinstance(fab_split, Mapping):
+                    raise ValueError(
+                        "--breakdown requires a fab_split mapping with GPA, EPA, and MPA"
+                    )
+                missing_split = [name for name in ("GPA", "EPA", "MPA")
+                                 if name not in fab_split]
+                if missing_split:
+                    raise ValueError(
+                        "fab_split is missing required categories: "
+                        + ", ".join(missing_split)
+                    )
+                unexpected_split = set(fab_split) - {"GPA", "EPA", "MPA"}
+                if unexpected_split:
+                    raise ValueError(
+                        "fab_split contains unsupported categories: "
+                        + ", ".join(sorted(unexpected_split))
+                    )
+
+                fabrication = extract_grams(total["fabrication"])
+                split_values = {name: extract_grams(fab_split[name])
+                                for name in ("GPA", "EPA", "MPA")}
+                split_total = sum(split_values.values())
+                tolerance = max(1e-6, abs(fabrication) * 1e-6)
+                if abs(split_total - fabrication) > tolerance:
+                    raise ValueError(
+                        "fab_split does not sum to total_carbon.fabrication: "
+                        f"split={split_total:.12g} g, fabrication={fabrication:.12g} g"
+                    )
+                available = {
+                    "operation": extract_grams(total["operation"]),
+                    **split_values,
+                    "packaging": extract_grams(total["packaging"]),
+                }
+            else:
+                available = {name: extract_grams(total[name])
+                             for name in DEFAULT_COMPONENTS}
+
+            grams = {name: available[name] for name in components}
             country, scenario, order = inferred_labels(path, data)
             relative_key = f"{path.parent.name}/{path.name}"
             override_key = relative_key if relative_key in labels else path.name
@@ -538,7 +607,7 @@ def resolve_breakdown_stacks(reports: Sequence[Report],
         raise ValueError("--breakdown-order requires a mode or a component list")
     if len(requested) == 1 and requested[0] in ("smallest-to-largest", "largest-to-smallest"):
         increasing = requested[0] == "smallest-to-largest"
-        priority = {name: index for index, name in enumerate(COMPONENTS)}
+        priority = {name: index for index, name in enumerate(selected)}
         return [tuple(sorted(selected, key=lambda name: (
             report.grams[name] if increasing else -report.grams[name],
             priority[name],
@@ -552,7 +621,7 @@ def resolve_breakdown_stacks(reports: Sequence[Report],
     return [tuple(requested) for _ in reports]
 
 
-def build_figure(reports: list[Report], *, unit: str = "kg", components=COMPONENTS,
+def build_figure(reports: list[Report], *, unit: str = "kg", components=DEFAULT_COMPONENTS,
                  country_order: Sequence[str] = (), width: int | None = None,
                  height: int = 500, font_size: float = 22, bar_width: float = 0.90,
                  group_gap: float = 0.0, title: str = "", totals: bool = True,
@@ -640,7 +709,7 @@ def build_figure(reports: list[Report], *, unit: str = "kg", components=COMPONEN
             first_legend = component not in shown_legend
             shown_legend.add(component)
             fig.add_trace(go.Bar(
-                x=xs, y=ys, width=bar_width, name=component.capitalize(),
+                x=xs, y=ys, width=bar_width, name=COMPONENT_LABELS[component],
                 legendgroup=component, showlegend=first_legend,
                 legendrank=legend_rank[component],
                 marker=dict(color=COLORS[component],
@@ -648,7 +717,7 @@ def build_figure(reports: list[Report], *, unit: str = "kg", components=COMPONEN
                 customdata=hover, cliponaxis=False,
                 hovertemplate=("<b>%{customdata[1]}</b><br>Folder/scenario: %{customdata[2]}"
                                "<br>File: %{customdata[0]}<br>"
-                               + component.capitalize() + ": %{y:,.3f} " + unit + " CO\u2082e"
+                               + COMPONENT_LABELS[component] + ": %{y:,.3f} " + unit + " CO\u2082e"
                                + "<br>Displayed stack: %{customdata[3]:,.3f} " + unit
                                + " CO\u2082e<extra></extra>"),
             ))
@@ -702,8 +771,10 @@ def build_figure(reports: list[Report], *, unit: str = "kg", components=COMPONEN
             fig.add_annotation(x=x, y=y, text=label, showarrow=False,
                                yshift=7, yanchor="bottom",
                                font=dict(size=total_font, color="#333333"))
-    all_components = set(components) == set(COMPONENTS)
-    ytitle = "Carbon emissions" if all_components else " + ".join(c.capitalize() for c in components)
+    full_component_set = set(components) in (set(DEFAULT_COMPONENTS),
+                                              set(BREAKDOWN_COMPONENTS))
+    ytitle = ("Carbon emissions" if full_component_set else
+              " + ".join(COMPONENT_LABELS[c] for c in components))
     fig.update_layout(
         template="none", width=width, height=height, barmode="stack", bargap=0, bargroupgap=0,
         paper_bgcolor="white", plot_bgcolor="white",
@@ -767,6 +838,7 @@ def save_outputs(fig: go.Figure, reports: list[Report], args: argparse.Namespace
         "layout": {"width": fig.layout.width, "height": fig.layout.height,
                    "tick_angle": fig.layout.xaxis.tickangle},
         "displayed_components": list(args.components),
+        "fabrication_breakdown": bool(args.breakdown),
         "labels_are_display_metadata_only": True,
         "reports": [{"file": str(r.path.resolve()), "country": r.country,
                      "scenario": r.scenario, "total_carbon_grams": r.grams,
@@ -846,7 +918,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="quoted filename glob(s), e.g. '*norway*.yaml'")
     parser.add_argument("--country-order", nargs="+", default=[],
                         help="country order; otherwise alphabetical")
-    parser.add_argument("--components", nargs="+", choices=COMPONENTS, default=list(COMPONENTS))
+    parser.add_argument(
+        "--breakdown", action="store_true",
+        help=(
+            "replace the aggregate fabrication bar segment with fab_split.GPA, "
+            "fab_split.EPA, and fab_split.MPA from each result YAML"
+        ),
+    )
+    parser.add_argument(
+        "--components", nargs="+", choices=ALL_COMPONENTS, default=None,
+        help=(
+            "categories to display; defaults to operation/fabrication/packaging, "
+            "or operation/GPA/EPA/MPA/packaging with --breakdown"
+        ),
+    )
     parser.add_argument("--breakdown-order", nargs="+", default=["smallest-to-largest"],
                         metavar="COMPONENT",
                         help="bar segment order from bottom to top: default "
@@ -878,6 +963,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="multi-area carbon-intensity YAML; default: "
                              + DEFAULT_CARBON_INTENSITY_FILE.as_posix())
     args = parser.parse_args(argv)
+
+    allowed_components = BREAKDOWN_COMPONENTS if args.breakdown else DEFAULT_COMPONENTS
+    if args.components is None:
+        args.components = list(allowed_components)
+    else:
+        invalid_components = [name for name in args.components
+                              if name not in allowed_components]
+        if invalid_components:
+            mode = "--breakdown mode" if args.breakdown else "default mode"
+            parser.error(
+                f"components not available in {mode}: "
+                + ", ".join(invalid_components)
+                + "; choose from " + ", ".join(allowed_components)
+            )
+
     if ((args.width is not None and args.width < 500) or args.height < 250
             or not 8 <= args.font_size <= 48):
         parser.error("use width >= 500, height >= 250, and font-size between 8 and 48")
@@ -918,7 +1018,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     successful = True
     for directory in directories:
         try:
-            reports = load_reports(directory, labels, args.include, args.skip_invalid)
+            reports = load_reports(
+                directory, labels, args.include, args.skip_invalid,
+                breakdown=args.breakdown, components=args.components,
+            )
             fig, reports = build_figure(
                 reports, unit=args.unit, components=args.components, country_order=args.country_order,
                 width=args.width, height=args.height, font_size=args.font_size, bar_width=args.bar_width,
@@ -936,6 +1039,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 per_chart.output = output_prefix(args.output, directory, batch)
             print(f"\nScenario folder: {directory} ({len(reports)} reports)")
             print("Plotting absolute emissions. Country labels:")
+            print("Fabrication display: " +
+                  ("GPA/EPA/MPA split" if args.breakdown else "aggregate fabrication"))
             print("Breakdown stack order (bottom to top): " + " ".join(args.breakdown_order))
             for report, tick in zip(reports, fig.layout.xaxis.ticktext):
                 print(f"  {report.path.name} -> {html.unescape(tick.replace('<br>', ' '))}")

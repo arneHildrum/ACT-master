@@ -197,6 +197,55 @@ def add_op_args(parser):
         help="The estimated device life_cycle before it will be replaced. (ex., 2 years, 15 days).",
     )
 
+    fab_split_group = parser.add_mutually_exclusive_group()
+
+    fab_split_group.add_argument(
+        "--fab-split",
+        choices=(
+            "conservative",
+            "informed",
+            "exaggerated",
+        ),
+        default=None,
+        help=(
+            "Add a reporting breakdown of total fabrication "
+            "emissions into EPA, GPA and MPA."
+        ),
+    )
+
+    fab_split_group.add_argument(
+        "--conservative",
+        dest="fab_split",
+        action="store_const",
+        const="conservative",
+        help=(
+            "Report fabrication as 40%% EPA, "
+            "20%% GPA and 40%% MPA."
+        ),
+    )
+
+    fab_split_group.add_argument(
+        "--informed",
+        dest="fab_split",
+        action="store_const",
+        const="informed",
+        help=(
+            "Report fabrication as 60%% EPA, "
+            "30%% GPA and 10%% MPA."
+        ),
+    )
+
+    fab_split_group.add_argument(
+        "--exaggerated",
+        dest="fab_split",
+        action="store_const",
+        const="exaggerated",
+        help=(
+            "Report fabrication as 80%% EPA, "
+            "18%% GPA and 2%% MPA."
+        ),
+    )
+
 
 def get_clean_args(args):
     """Process and clean parsed arguments into model and query argument dicts.
@@ -230,6 +279,7 @@ def get_clean_args(args):
         if args.life_cycle is not None
         else None,
         "export_file": args.export_file,
+        "fab_split": args.fab_split,
     }
     print("MODEL ARGS:", model_args)                                                                                                                        # Prints the model arguments for debugging purposes
     return model_args, query_args

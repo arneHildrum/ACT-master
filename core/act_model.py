@@ -247,6 +247,7 @@ class ACTModel:
         duty_cycle: float = 1.0,
         life_cycle=2 * year,
         export_file=None,
+        fab_split: str | None = None,
     ):
         """Calculate the aggregate carbon cost for this configuration.
 
@@ -326,6 +327,9 @@ class ACTModel:
         self.metric_analyzer = MetricAnalyzer(act_model=self)
         self.results.metrics = self.metric_analyzer.get_results()
         self.cost_analyzer = CostAnalyzer(act=self)
+
+        # apply fab emissions split if specified
+        self.results.calculate_fab_split(fab_split)
 
         # export the results
         self.export_results(export_file)
