@@ -23,6 +23,14 @@ import yaml
 COLORS = {"operation": "#DCD2EB", "fabrication": "#80B1BA", "packaging": "#C9BF9C"}
 OUTLINE = "#666666"
 RENEWABLE_LINE_COLOR = "#D62728"
+CARBON_INTENSITY_LINE_COLOR = RENEWABLE_LINE_COLOR
+DEFAULT_CARBON_INTENSITY_FILE = (
+    Path("results") / "operation" / "carbon_intensity" / "carbon_intensity_2025.yaml"
+)
+CARBON_INTENSITY_FIELDS = {
+    "normalized": ("normalized", "value"),
+    "unnormalized": ("unnormalized", "carbon_intensity_g_per_kwh"),
+}
 COMPONENTS = ("operation", "fabrication", "packaging")
 UNIT_GRAMS = {"g": 1.0, "kg": 1000.0, "t": 1_000_000.0}
 MASS_GRAMS = {
@@ -41,8 +49,7 @@ COUNTRY_NAMES = {
     "canada": "Canada", "can": "Canada", "ca": "Canada",
     "china": "China", "chn": "China", "cn": "China",
     "ethiopia": "Ethiopia", "eth": "Ethiopia", "et": "Ethiopia",
-    "eu27": "EU27", "eu": "EU27", "europeanunion": "EU27",
-    "europeanunion27": "EU27", "europeanunion27countries": "EU27",
+    "eu27": "EU27", "eu": "EU27", "europeanunion": "EU27","europeanunion27": "EU27", "europeanunion27countries": "EU27", "EU": "EU27",
     "france": "France", "fra": "France", "fr": "France",
     "germany": "Germany", "deu": "Germany", "de": "Germany",
     "india": "India", "ind": "India", "in": "India",
@@ -52,8 +59,7 @@ COUNTRY_NAMES = {
     "russia": "Russia", "russianfederation": "Russia", "rus": "Russia", "ru": "Russia",
     "taiwan": "Taiwan", "twn": "Taiwan", "tw": "Taiwan",
     "unitedkingdom": "United Kingdom", "uk": "United Kingdom", "gb": "United Kingdom", "UK": "United Kingdom", "gbr": "United Kingdom",
-    "usa": "USA", "us": "USA", "unitedstates": "USA",
-    "unitedstatesofamerica": "USA",
+    "usa": "USA", "us": "USA", "unitedstates": "USA", "unitedstatesofamerica": "USA",
 }
 SCENARIO_FOLDERS = ("operation", "conservative", "informed", "exaggerated")
 SCENARIO_NAMES = {name: name.capitalize() for name in SCENARIO_FOLDERS}
@@ -124,10 +130,6 @@ def resolve_renewable_file(path: Path | None, directory: Path) -> Path:
 
 def load_renewable_percentages(path: Path) -> dict[str, RenewablePercentage]:
     """Read the supplied location/renew/year schema without estimating any values.
-
-    Percentages may be numbers or numeric strings (optionally ending in '%').
-    A missing year is allowed; a provided year must be a positive integer.
-    Duplicate countries, including aliases such as USA/United States, are errors.
     """
     try:
         with path.open(encoding="utf-8-sig") as stream:
@@ -165,6 +167,238 @@ def load_renewable_percentages(path: Path) -> dict[str, RenewablePercentage]:
             )
         values[key] = RenewablePercentage(location=location, renew=renew, year=year)
     return values
+
+
+@dataclass(frozen=True)
+class CarbonIntensity:
+    """One stored area/metric value; no rescaling or recalculation is performed."""
+    area: str
+    value: float
+    year: int | None
+    coverage: dict
+    warnings: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class CarbonIntensityData:
+    mode: str
+    source: Path
+    values: Mapping[str, CarbonIntensity]
+    normalization: dict
+    warnings: tuple[str, ...]
+
+
+def carbon_intensity_country_key(value: str) -> str:
+    """Match the supplied source's area labels to chart countries.
+
+    In particular, match 'Taiwan (China)' to Taiwan, not China. Europe and EU27
+    deliberately remain distinct: a continental value is not an EU27 value.
+    The existing USA/United States and UK/United Kingdom aliases are reused.
+    """
+    key = country_key(value)
+    return "taiwan" if key == "taiwanchina" else key
+
+
+def load_carbon_intensities(path: Path, mode: str) -> CarbonIntensityData:
+    """Read the selected field from each entry in the multi-area YAML schema.
+
+    Validate only the selected intensity metric. Never substitute share_normalized,
+    recompute normalized values from the plotted countries, or fill missing data.
+    """
+    if mode not in CARBON_INTENSITY_FIELDS:
+        raise ValueError("carbon intensity mode must be 'normalized' or 'unnormalized'")
+    if not path.is_file():
+        raise ValueError(
+            f"carbon-intensity file does not exist: {path}. "
+            "Run from the project root or specify --carbon-intensity-file PATH."
+        )
+    try:
+        with path.open(encoding="utf-8-sig") as stream:
+            data = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"invalid carbon-intensity YAML in {path}: {exc}") from exc
+    if not isinstance(data, Mapping):
+        raise ValueError(f"{path}: expected a YAML mapping containing an 'areas' list")
+    rows = data.get("areas")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError(f"{path}: 'areas' must be a non-empty list")
+    normalization = data.get("normalization", {})
+    if not isinstance(normalization, Mapping):
+        raise ValueError(f"{path}: 'normalization' must be a mapping when supplied")
+
+    def read_year(raw: object, context: str) -> int | None:
+        if raw is not None and (type(raw) is not int or not 1 <= raw <= 9999):
+            raise ValueError(f"{context}: year must be an integer from 1 to 9999")
+        return raw
+
+    def read_warnings(raw: object, context: str) -> tuple[str, ...]:
+        if not isinstance(raw, list) or any(not isinstance(item, str) for item in raw):
+            raise ValueError(f"{context}: warnings must be a list of strings")
+        return tuple(raw)
+
+    default_year = read_year(data.get("year"), str(path))
+    file_warnings = read_warnings(data.get("warnings", []), str(path))
+    section, field = CARBON_INTENSITY_FIELDS[mode]
+    values: dict[str, CarbonIntensity] = {}
+    years: set[int] = set()
+    for index, row in enumerate(rows, start=1):
+        context = f"{path}, areas record {index}"
+        if not isinstance(row, Mapping):
+            raise ValueError(f"{context}: each area must be a mapping")
+        area = row.get("area")
+        if not isinstance(area, str) or not area.strip() or not country_key(area):
+            raise ValueError(f"{context}: area must be a non-empty name")
+        area = area.strip()
+        context += f" ({area})"
+        metric = row.get(section)
+        if not isinstance(metric, Mapping) or field not in metric:
+            raise ValueError(f"{context}: missing {section}.{field}")
+        raw = metric[field]
+        if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
+            raise ValueError(f"{context}: {section}.{field} must be a number")
+        try:
+            value = float(raw)
+        except (ValueError, OverflowError) as exc:
+            raise ValueError(f"{context}: invalid {section}.{field}: {raw!r}") from exc
+        if not math.isfinite(value) or value < 0:
+            raise ValueError(f"{context}: {section}.{field} must be finite and non-negative")
+        if mode == "normalized" and value > 1:
+            raise ValueError(f"{context}: normalized.value must be in [0, 1], got {raw!r}")
+        unit = (metric.get("unit", "dimensionless") if mode == "normalized"
+                else row.get("unit", data.get("unit", "g / kWh")))
+        expected_unit = "dimensionless" if mode == "normalized" else "g/kwh"
+        if not isinstance(unit, str) or re.sub(r"\s+", "", unit).casefold() != expected_unit:
+            raise ValueError(f"{context}: expected {expected_unit} units, got {unit!r}")
+        year = read_year(row.get("year", default_year), context)
+        if default_year is not None and year is not None and year != default_year:
+            raise ValueError(f"{context}: year {year} differs from file year {default_year}")
+        if year is not None:
+            years.add(year)
+        coverage = row.get("coverage", {})
+        if not isinstance(coverage, Mapping):
+            raise ValueError(f"{context}: coverage must be a mapping when supplied")
+        warnings = read_warnings(row.get("warnings", []), context)
+        key = carbon_intensity_country_key(area)
+        if key in values:
+            raise ValueError(
+                f"{context}: duplicate area/alias {area!r} (also {values[key].area!r}); "
+                "provide exactly one record per area for the line"
+            )
+        values[key] = CarbonIntensity(area, value, year, dict(coverage), warnings)
+    if len(years) > 1:
+        raise ValueError(f"{path}: multiple years found ({sorted(years)}); use a single-year file")
+    return CarbonIntensityData(mode, path.resolve(), values, dict(normalization), file_warnings)
+
+
+def add_carbon_intensity_overlay(fig: go.Figure, reports: Sequence[Report],
+                                data: CarbonIntensityData, *, font_size: float = 22) -> None:
+    """Add one y2 line point at the center of each displayed country's bar(s).
+
+    The caller must reserve a right margin. Both modes share the existing x-axis.
+    Values and normalization metadata are copied from the source, never recomputed.
+    Unnormalized axis limits use all source areas for consistent scenario charts.
+    """
+    if data.mode not in CARBON_INTENSITY_FIELDS:
+        raise ValueError("unsupported carbon-intensity mode")
+    if any(getattr(trace, "yaxis", None) == "y2" for trace in fig.data):
+        raise ValueError("choose only one secondary-axis overlay per chart")
+    positions: dict[str, list[int]] = {}
+    labels: dict[str, str] = {}
+    for x, report in enumerate(reports):
+        key = carbon_intensity_country_key(report.country)
+        positions.setdefault(key, []).append(x)
+        labels.setdefault(key, report.country)
+    points = []
+    for key, xs in sorted(positions.items(), key=lambda pair: pair[1][0]):
+        record = data.values.get(key)
+        points.append({
+            "country": labels[key], "x": sum(xs) / len(xs),
+            "source_area": record.area if record else None,
+            "value": record.value if record else None,
+            "year": record.year if record else None,
+            "coverage": record.coverage if record else None,
+            "source_warnings": list(record.warnings) if record else [],
+        })
+    missing = [point["country"] for point in points if point["value"] is None]
+    if len(missing) == len(points):
+        raise ValueError("no plotted country matches the carbon-intensity areas; "
+                         "check country labels, --labels, or the source YAML")
+    if missing:
+        print("WARNING: no carbon intensity for: " + ", ".join(missing)
+              + ". Leaving gaps in the line; emissions bars are unchanged.", file=sys.stderr)
+    incomplete = [point["country"] for point in points
+                  if point["coverage"] and
+                  point["coverage"].get("all_nonzero_generation_sources_matched") is False]
+    if incomplete:
+        print("WARNING: carbon-intensity source reports incomplete generation-source coverage for: "
+              + ", ".join(incomplete) + ". Plotting the stored values unchanged; "
+              "see hover details and the data audit.", file=sys.stderr)
+
+    normalized = data.mode == "normalized"
+    if normalized:
+        axis_range = [0, 1]
+        axis_title = "Carbon intensity<br>(normalized, 0-1)"
+        ticks = dict(tickmode="linear", tick0=0, dtick=0.2, tickformat=".1f")
+        value_hover = "Normalized carbon intensity: %{y:.5f}"
+    else:
+        highest = max(record.value for record in data.values.values())
+        upper = highest * 1.08 if highest else 1.0
+        if not math.isfinite(upper):
+            raise ValueError("carbon-intensity values are too large to plot")
+        axis_range = [0, upper]
+        axis_title = "Carbon intensity (g/kWh)"
+        ticks = dict(tickmode="auto", nticks=6, tickformat=",.3~f",
+                     exponentformat="none", showexponent="none")
+        value_hover = "Carbon intensity: %{y:.5f} g/kWh"
+
+    def coverage_label(point: Mapping) -> str:
+        coverage = point["coverage"] or {}
+        if coverage.get("all_nonzero_generation_sources_matched") is True:
+            return "All nonzero generation sources matched"
+        if coverage.get("all_nonzero_generation_sources_matched") is False:
+            return "Incomplete; unmatched contributions omitted"
+        return "Not supplied"
+
+    fig.add_trace(go.Scatter(
+        x=[point["x"] for point in points], y=[point["value"] for point in points],
+        yaxis="y2", name="Carbon intensity", mode="lines+markers",
+        line=dict(color=CARBON_INTENSITY_LINE_COLOR, width=3),
+        marker=dict(color=CARBON_INTENSITY_LINE_COLOR, size=9),
+        connectgaps=False, cliponaxis=False,
+        customdata=[[
+            html.escape(point["country"]),
+            html.escape(point["source_area"] or "Not available"),
+            str(point["year"]) if point["year"] is not None else "Not supplied",
+            coverage_label(point),
+        ] for point in points],
+        hovertemplate=("<b>%{customdata[0]}</b><br>" + value_hover
+                       + "<br>Source area: %{customdata[1]}<br>Year: %{customdata[2]}"
+                       + "<br>Coverage: %{customdata[3]}<extra></extra>"),
+    ))
+    fig.update_layout(yaxis2=dict(
+        title=dict(text=axis_title, standoff=12),
+        overlaying="y", side="right", anchor="x", type="linear", range=axis_range,
+        **ticks, ticksuffix="", showgrid=False, zeroline=False, showline=True,
+        automargin=True, linecolor=CARBON_INTENSITY_LINE_COLOR, linewidth=1,
+        ticks="outside", ticklen=4, tickcolor=CARBON_INTENSITY_LINE_COLOR,
+        tickfont=dict(size=font_size - 2, color=CARBON_INTENSITY_LINE_COLOR),
+    ))
+    section, field = CARBON_INTENSITY_FIELDS[data.mode]
+    fig.update_layout(meta={**(fig.layout.meta or {}), "carbon_intensity_overlay": {
+        "metric": "carbon_intensity", "mode": data.mode,
+        "source_field": f"areas[].{section}.{field}",
+        "unit": "dimensionless" if normalized else "g / kWh",
+        "source_file": str(data.source), "values_recomputed": False,
+        "renormalized_for_chart": False, "source_normalization": data.normalization,
+        "source_warnings": list(data.warnings),
+        "axis": "y2", "axis_range": axis_range,
+        "axis_scale_basis": "fixed 0-1" if normalized else "maximum across all source areas",
+        "point_placement": "center of each displayed country group",
+        "missing_countries": missing, "incomplete_coverage_countries": incomplete,
+        "unused_source_areas": [record.area for key, record in data.values.items()
+                                if key not in positions],
+        "points": points,
+    }})
 
 
 def extract_grams(value: object) -> float:
@@ -325,11 +559,14 @@ def build_figure(reports: list[Report], *, unit: str = "kg", components=COMPONEN
                  tick_angle: int | None = None,
                  renewable_data: Mapping[str, RenewablePercentage] | None = None,
                  renewable_source: Path | None = None,
-                 breakdown_order: Sequence[str] = ("smallest-to-largest",)
+                 breakdown_order: Sequence[str] = ("smallest-to-largest",),
+                 carbon_intensity_data: CarbonIntensityData | None = None
                  ) -> tuple[go.Figure, list[Report]]:
     """Single regular interval per report, country-only ticks, optional y2 line."""
     if not reports:
         raise ValueError("cannot plot an empty report list")
+    if renewable_data is not None and carbon_intensity_data is not None:
+        raise ValueError("choose renewable percentage OR carbon intensity for the secondary y-axis")
     rank = {COUNTRY_NAMES.get(compact_key(name), name).casefold(): i
             for i, name in enumerate(country_order)}
     ordered = sorted(reports, key=lambda r: (
@@ -360,7 +597,8 @@ def build_figure(reports: list[Report], *, unit: str = "kg", components=COMPONEN
     label_font = max(12, font_size - 3)
     total_font = max(11, font_size - 4)
     left_margin = 112 if unit != "t" else 96
-    right_margin = 120 if renewable_data is not None else 24
+    has_secondary_line = renewable_data is not None or carbon_intensity_data is not None
+    right_margin = 120 if has_secondary_line else 24
     longest_total = max(len(s) for s in total_strings)
     slot_width = max(66, longest_total * total_font * 0.56 + 12) if totals else 66
     if width is None:
@@ -498,6 +736,8 @@ def build_figure(reports: list[Report], *, unit: str = "kg", components=COMPONEN
             tickcolor=RENEWABLE_LINE_COLOR,
             tickfont=dict(size=font_size - 2, color=RENEWABLE_LINE_COLOR),
         ))
+    if carbon_intensity_data is not None:
+        add_carbon_intensity_overlay(fig, ordered, carbon_intensity_data, font_size=font_size)
     if title:
         fig.update_layout(title=dict(text=html.escape(title), x=0.5, xanchor="center",
                                      y=0.98, yanchor="top", font=dict(size=font_size)))
@@ -536,6 +776,8 @@ def save_outputs(fig: go.Figure, reports: list[Report], args: argparse.Namespace
         manifest["renewable_overlay"] = fig.layout.meta["renewable_overlay"]
     if fig.layout.meta and "breakdown_stacking" in fig.layout.meta:
         manifest["breakdown_stacking"] = fig.layout.meta["breakdown_stacking"]
+    if fig.layout.meta and "carbon_intensity_overlay" in fig.layout.meta:
+        manifest["carbon_intensity_overlay"] = fig.layout.meta["carbon_intensity_overlay"]
     audit_path = Path(str(prefix) + ".data.json")
     audit_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Saved data/label audit: {audit_path}")
@@ -621,10 +863,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--no-total-labels", action="store_true")
     parser.add_argument("--skip-invalid", action="store_true")
     parser.add_argument("--show", action="store_true")
-    parser.add_argument("--double-y-axis", "--dual-y-axis", dest="double_y_axis", action="store_true",
+    overlay = parser.add_mutually_exclusive_group()
+    overlay.add_argument("--double-y-axis", "--dual-y-axis", dest="double_y_axis", action="store_true",
                         help="overlay renewable energy (%%) as a line on a second 0-100%% y-axis")
     parser.add_argument("--renewable-file", type=Path,
                         help="location/renew/year YAML; default: find renewable_percentage.yaml")
+    overlay.add_argument("--carbon-intensity-normalized", dest="carbon_intensity_mode",
+                         action="store_const", const="normalized",
+                         help="overlay stored areas[].normalized.value on a 0-1 right y-axis")
+    overlay.add_argument("--carbon-intensity-unnormalized", dest="carbon_intensity_mode",
+                         action="store_const", const="unnormalized",
+                         help="overlay stored unnormalized carbon intensity on a g/kWh right y-axis")
+    parser.add_argument("--carbon-intensity-file", type=Path, default=None,
+                        help="multi-area carbon-intensity YAML; default: "
+                             + DEFAULT_CARBON_INTENSITY_FILE.as_posix())
     args = parser.parse_args(argv)
     if ((args.width is not None and args.width < 500) or args.height < 250
             or not 8 <= args.font_size <= 48):
@@ -639,6 +891,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error(str(exc))
     if args.renewable_file is not None and not args.double_y_axis:
         parser.error("--renewable-file requires --double-y-axis")
+    if args.carbon_intensity_file is not None and args.carbon_intensity_mode is None:
+        parser.error("--carbon-intensity-file requires --carbon-intensity-normalized "
+                     "or --carbon-intensity-unnormalized")
     if args.group_gap is not None:
         print("Note: --group-gap is deprecated and ignored; country bars are evenly spaced.",
               file=sys.stderr)
@@ -646,6 +901,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         labels = read_label_overrides(args.labels)
         directories = discover_report_directories(args.directory)
         renewable_data = None
+        carbon_intensity_data = None
+        if args.carbon_intensity_mode is not None:
+            args.carbon_intensity_file = (args.carbon_intensity_file
+                                          or DEFAULT_CARBON_INTENSITY_FILE)
+            carbon_intensity_data = load_carbon_intensities(
+                args.carbon_intensity_file, args.carbon_intensity_mode,
+            )
         if args.double_y_axis:
             args.renewable_file = resolve_renewable_file(args.renewable_file, args.directory)
             renewable_data = load_renewable_percentages(args.renewable_file)
@@ -664,6 +926,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 totals=not args.no_total_labels, tick_angle=args.tick_angle,
                 renewable_data=renewable_data, renewable_source=args.renewable_file,
                 breakdown_order=args.breakdown_order,
+                carbon_intensity_data=carbon_intensity_data,
             )
             per_chart = argparse.Namespace(**vars(args))
             per_chart.directory = directory
@@ -678,6 +941,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"  {report.path.name} -> {html.unescape(tick.replace('<br>', ' '))}")
             if args.double_y_axis:
                 print(f"Renewable percentages: {args.renewable_file}")
+            if carbon_intensity_data is not None:
+                print(f"Carbon intensity ({args.carbon_intensity_mode}): "
+                      f"{args.carbon_intensity_file}")
             print(f"Layout: {fig.layout.width} x {fig.layout.height} px, "
                   f"country label angle {fig.layout.xaxis.tickangle} degrees")
             if not save_outputs(fig, reports, per_chart):
