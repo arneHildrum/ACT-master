@@ -27,6 +27,13 @@ COLORS = {
     "EPA": "#80B1BA",
     "MPA": "#7A9E7E",
     "packaging": "#C9BF9C",
+    "Solar": "#FDB462",
+    "Wind": "#80B1D3",
+    "Hydro": "#4DAF4A",
+    "Bioenergy": "#8C6D31",
+    "Nuclear": "#984EA3",
+    "Coal": "#4D4D4D",
+    "Gas": "#E15759",
 }
 COMPONENT_LABELS = {
     "operation": "Operation",
@@ -35,7 +42,17 @@ COMPONENT_LABELS = {
     "EPA": "EPA",
     "MPA": "MPA",
     "packaging": "Packaging",
+    "Solar": "Solar",
+    "Wind": "Wind",
+    "Hydro": "Hydro",
+    "Bioenergy": "Bioenergy",
+    "Nuclear": "Nuclear",
+    "Coal": "Coal",
+    "Gas": "Gas",
 }
+FALLBACK_COMPONENT_COLORS = (
+    "#76B7B2", "#59A14F", "#EDC948", "#AF7AA1", "#FF9DA7", "#945632",
+)
 OUTLINE = "#666666"
 RENEWABLE_LINE_COLOR = "#D62728"
 CARBON_INTENSITY_LINE_COLOR = RENEWABLE_LINE_COLOR
@@ -48,8 +65,13 @@ CARBON_INTENSITY_FIELDS = {
 }
 DEFAULT_COMPONENTS = ("operation", "fabrication", "packaging")
 BREAKDOWN_COMPONENTS = ("operation", "GPA", "EPA", "MPA", "packaging")
-ALL_COMPONENTS = tuple(dict.fromkeys(DEFAULT_COMPONENTS + BREAKDOWN_COMPONENTS))
-# Backwards-compatible alias for callers that import COMPONENTS.
+OPERATION_SOURCE_PREFERRED_ORDER = (
+    "Solar", "Wind", "Hydro", "Bioenergy", "Nuclear", "Coal", "Gas",
+)
+# Backwards-compatible aliases for callers that import these names.
+ALL_COMPONENTS = tuple(dict.fromkeys(
+    DEFAULT_COMPONENTS + BREAKDOWN_COMPONENTS + OPERATION_SOURCE_PREFERRED_ORDER
+))
 COMPONENTS = DEFAULT_COMPONENTS
 UNIT_GRAMS = {"g": 1.0, "kg": 1000.0, "t": 1_000_000.0}
 MASS_GRAMS = {
@@ -90,6 +112,18 @@ LEGACY_SUFFIXES = (
 
 def compact_key(value: object) -> str:
     return re.sub(r"[^a-z0-9]", "", str(value).casefold())
+
+
+def component_label(name: str) -> str:
+    return COMPONENT_LABELS.get(name, name)
+
+
+def component_color(name: str) -> str:
+    if name in COLORS:
+        return COLORS[name]
+    # Stable fallback for future source names not listed above.
+    index = sum(ord(char) for char in name) % len(FALLBACK_COMPONENT_COLORS)
+    return FALLBACK_COMPONENT_COLORS[index]
 
 
 def country_from_filename(path: Path) -> str | None:
@@ -207,6 +241,24 @@ class CarbonIntensityData:
     warnings: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class OperationSourceBreakdown:
+    area: str
+    year: int | None
+    total_intensity_g_per_kwh: float
+    contributions_g_per_kwh: Mapping[str, float]
+    coverage: dict
+    warnings: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class OperationBreakdownData:
+    source: Path
+    values: Mapping[str, OperationSourceBreakdown]
+    source_names: tuple[str, ...]
+    warnings: tuple[str, ...]
+
+
 def carbon_intensity_country_key(value: str) -> str:
     """Match the supplied source's area labels to chart countries.
 
@@ -309,13 +361,228 @@ def load_carbon_intensities(path: Path, mode: str) -> CarbonIntensityData:
     return CarbonIntensityData(mode, path.resolve(), values, dict(normalization), file_warnings)
 
 
+def load_operation_source_breakdowns(path: Path) -> OperationBreakdownData:
+    """Load per-source carbon-intensity contributions for operation breakdown.
+    """
+    if not path.is_file():
+        raise ValueError(
+            f"carbon-intensity file does not exist: {path}. "
+            "Run from the project root or specify --carbon-intensity-file PATH."
+        )
+    try:
+        with path.open(encoding="utf-8-sig") as stream:
+            data = yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"invalid carbon-intensity YAML in {path}: {exc}") from exc
+    if not isinstance(data, Mapping):
+        raise ValueError(f"{path}: expected a YAML mapping containing an 'areas' list")
+    rows = data.get("areas")
+    if not isinstance(rows, list) or not rows:
+        raise ValueError(f"{path}: 'areas' must be a non-empty list")
+    raw_file_warnings = data.get("warnings", [])
+    if not isinstance(raw_file_warnings, list) or any(
+        not isinstance(item, str) for item in raw_file_warnings
+    ):
+        raise ValueError(f"{path}: warnings must be a list of strings")
+    default_year = data.get("year")
+    if default_year is not None and (
+        type(default_year) is not int or not 1 <= default_year <= 9999
+    ):
+        raise ValueError(f"{path}: year must be an integer from 1 to 9999")
+
+    values: dict[str, OperationSourceBreakdown] = {}
+    all_sources: set[str] = set()
+    for index, row in enumerate(rows, start=1):
+        context = f"{path}, areas record {index}"
+        if not isinstance(row, Mapping):
+            raise ValueError(f"{context}: each area must be a mapping")
+        area = row.get("area")
+        if not isinstance(area, str) or not area.strip():
+            raise ValueError(f"{context}: area must be a non-empty string")
+        area = area.strip()
+        context += f" ({area})"
+        year = row.get("year", default_year)
+        if year is not None and (type(year) is not int or not 1 <= year <= 9999):
+            raise ValueError(f"{context}: year must be an integer from 1 to 9999")
+
+        unnormalized = row.get("unnormalized")
+        if not isinstance(unnormalized, Mapping):
+            raise ValueError(f"{context}: missing unnormalized mapping")
+        raw_total = unnormalized.get("carbon_intensity_g_per_kwh")
+        if isinstance(raw_total, bool) or not isinstance(raw_total, (int, float, str)):
+            raise ValueError(
+                f"{context}: unnormalized.carbon_intensity_g_per_kwh must be a number"
+            )
+        try:
+            total_intensity = float(raw_total)
+        except (ValueError, OverflowError) as exc:
+            raise ValueError(f"{context}: invalid total carbon intensity {raw_total!r}") from exc
+        if not math.isfinite(total_intensity) or total_intensity < 0:
+            raise ValueError(f"{context}: total carbon intensity must be finite and non-negative")
+
+        source_rows = row.get("sources")
+        if not isinstance(source_rows, list) or not source_rows:
+            raise ValueError(f"{context}: sources must be a non-empty list")
+        contributions: dict[str, float] = {}
+        for source_index, source_row in enumerate(source_rows, start=1):
+            source_context = f"{context}, source record {source_index}"
+            if not isinstance(source_row, Mapping):
+                raise ValueError(f"{source_context}: source must be a mapping")
+            source_name = source_row.get("electricity_source")
+            if not isinstance(source_name, str) or not source_name.strip():
+                raise ValueError(f"{source_context}: electricity_source must be non-empty")
+            source_name = source_name.strip()
+            raw_contribution = source_row.get("unnormalized_contribution_g_per_kwh")
+            if isinstance(raw_contribution, bool) or not isinstance(
+                raw_contribution, (int, float, str)
+            ):
+                raise ValueError(
+                    f"{source_context}: unnormalized_contribution_g_per_kwh must be a number"
+                )
+            try:
+                contribution = float(raw_contribution)
+            except (ValueError, OverflowError) as exc:
+                raise ValueError(
+                    f"{source_context}: invalid contribution {raw_contribution!r}"
+                ) from exc
+            if not math.isfinite(contribution) or contribution < 0:
+                raise ValueError(
+                    f"{source_context}: contribution must be finite and non-negative"
+                )
+            if source_name in contributions:
+                raise ValueError(f"{source_context}: duplicate source {source_name!r}")
+            contributions[source_name] = contribution
+            all_sources.add(source_name)
+
+        contribution_total = sum(contributions.values())
+        tolerance = max(1e-9, abs(total_intensity) * 1e-9)
+        if abs(contribution_total - total_intensity) > tolerance:
+            raise ValueError(
+                f"{context}: source contributions sum to {contribution_total:.12g} g/kWh, "
+                f"but unnormalized intensity is {total_intensity:.12g} g/kWh"
+            )
+        coverage = row.get("coverage", {})
+        if not isinstance(coverage, Mapping):
+            raise ValueError(f"{context}: coverage must be a mapping when supplied")
+        raw_warnings = row.get("warnings", [])
+        if not isinstance(raw_warnings, list) or any(
+            not isinstance(item, str) for item in raw_warnings
+        ):
+            raise ValueError(f"{context}: warnings must be a list of strings")
+        key = carbon_intensity_country_key(area)
+        if key in values:
+            raise ValueError(
+                f"{context}: duplicate area/alias {area!r} "
+                f"(also {values[key].area!r})"
+            )
+        values[key] = OperationSourceBreakdown(
+            area=area,
+            year=year,
+            total_intensity_g_per_kwh=total_intensity,
+            contributions_g_per_kwh=contributions,
+            coverage=dict(coverage),
+            warnings=tuple(raw_warnings),
+        )
+
+    preferred = [name for name in OPERATION_SOURCE_PREFERRED_ORDER if name in all_sources]
+    additional = sorted(all_sources - set(preferred), key=str.casefold)
+    return OperationBreakdownData(
+        source=path.resolve(),
+        values=values,
+        source_names=tuple(preferred + additional),
+        warnings=tuple(raw_file_warnings),
+    )
+
+
+def apply_operation_breakdown(
+    reports: Sequence[Report], data: OperationBreakdownData
+) -> dict:
+    """Replace each report's operation value with source-specific values.
+    """
+    missing: list[str] = []
+    incomplete: list[str] = []
+    audit_points: list[dict] = []
+    for report in reports:
+        key = carbon_intensity_country_key(report.country)
+        record = data.values.get(key)
+        if record is None:
+            missing.append(report.country)
+            continue
+        operation = report.grams.get("operation")
+        if operation is None:
+            raise ValueError(f"{report.path.name}: missing operation emissions")
+        contribution_total = sum(record.contributions_g_per_kwh.values())
+        if operation > 0 and contribution_total <= 0:
+            raise ValueError(
+                f"{report.path.name}: cannot split positive operation emissions because "
+                f"{record.area} has zero matched source intensity"
+            )
+        source_grams = {
+            name: (operation * record.contributions_g_per_kwh.get(name, 0.0)
+                   / contribution_total if contribution_total else 0.0)
+            for name in data.source_names
+        }
+        nonzero_sources = [
+            name for name in data.source_names
+            if record.contributions_g_per_kwh.get(name, 0.0) > 0
+        ]
+        correction_source = nonzero_sources[-1] if nonzero_sources else data.source_names[-1]
+        source_grams[correction_source] += operation - sum(source_grams.values())
+        report.grams.update(source_grams)
+        split_sum = sum(report.grams[name] for name in data.source_names)
+        tolerance = max(1e-6, abs(operation) * 1e-9)
+        if abs(split_sum - operation) > tolerance:
+            raise RuntimeError(
+                f"{report.path.name}: operation source split does not preserve total: "
+                f"split={split_sum:.12g} g, operation={operation:.12g} g"
+            )
+        if record.coverage.get("all_nonzero_generation_sources_matched") is False:
+            incomplete.append(report.country)
+        audit_points.append({
+            "file": str(report.path.resolve()),
+            "country": report.country,
+            "source_area": record.area,
+            "year": record.year,
+            "original_operation_grams": operation,
+            "matched_intensity_g_per_kwh": record.total_intensity_g_per_kwh,
+            "source_contributions_g_per_kwh": dict(record.contributions_g_per_kwh),
+            "allocated_operation_grams": source_grams,
+            "coverage": record.coverage,
+            "source_warnings": list(record.warnings),
+        })
+    if missing:
+        raise ValueError(
+            "--breakdown-operation has no carbon-intensity source data for: "
+            + ", ".join(sorted(set(missing)))
+        )
+    if incomplete:
+        print(
+            "WARNING: operation breakdown uses matched generation sources only for: "
+            + ", ".join(sorted(set(incomplete)))
+            + ". The source YAML states that unmatched generation contributions are "
+              "omitted; matched-source proportions are rescaled to the ACT operation total.",
+            file=sys.stderr,
+        )
+    return {
+        "enabled": True,
+        "source_file": str(data.source),
+        "source_field": "areas[].sources[].unnormalized_contribution_g_per_kwh",
+        "allocation_method": (
+            "ACT operation total multiplied by each matched source contribution divided "
+            "by the sum of matched source contributions"
+        ),
+        "operation_total_preserved": True,
+        "matched_sources_rescaled_to_full_operation_total": True,
+        "source_names": list(data.source_names),
+        "file_warnings": list(data.warnings),
+        "incomplete_coverage_countries": sorted(set(incomplete)),
+        "points": audit_points,
+    }
+
+
 def add_carbon_intensity_overlay(fig: go.Figure, reports: Sequence[Report],
                                 data: CarbonIntensityData, *, font_size: float = 22) -> None:
     """Add one y2 line point at the center of each displayed country's bar(s).
-
-    The caller must reserve a right margin. Both modes share the existing x-axis.
-    Values and normalization metadata are copied from the source, never recomputed.
-    Unnormalized axis limits use all source areas for consistent scenario charts.
     """
     if data.mode not in CARBON_INTENSITY_FIELDS:
         raise ValueError("unsupported carbon-intensity mode")
@@ -482,7 +749,9 @@ def read_label_overrides(path: Path | None) -> dict:
 
 def load_reports(directory: Path, labels: Mapping, patterns: Sequence[str],
                  skip_invalid: bool = False, *, breakdown: bool = False,
-                 components: Sequence[str] = DEFAULT_COMPONENTS) -> list[Report]:
+                 components: Sequence[str] = DEFAULT_COMPONENTS,
+                 operation_breakdown_data: OperationBreakdownData | None = None
+                 ) -> tuple[list[Report], dict | None]:
     if not directory.is_dir():
         raise ValueError(f"results directory does not exist: {directory}")
     files = sorted(
@@ -553,7 +822,8 @@ def load_reports(directory: Path, labels: Mapping, patterns: Sequence[str],
                 available = {name: extract_grams(total[name])
                              for name in DEFAULT_COMPONENTS}
 
-            grams = {name: available[name] for name in components}
+
+            grams = dict(available)
             country, scenario, order = inferred_labels(path, data)
             relative_key = f"{path.parent.name}/{path.name}"
             override_key = relative_key if relative_key in labels else path.name
@@ -588,7 +858,24 @@ def load_reports(directory: Path, labels: Mapping, patterns: Sequence[str],
             print(f"WARNING: {count} reports for {country} in {directory}. "
                   "Keeping separate numbered bars; nothing is averaged or merged. "
                   "Use --include to select one run if these are duplicates.", file=sys.stderr)
-    return reports
+    operation_breakdown_audit = None
+    if operation_breakdown_data is not None:
+        operation_breakdown_audit = apply_operation_breakdown(
+            reports, operation_breakdown_data
+        )
+
+    # Only now select the fields requested for plotting.  This ordering is
+    # what prevents KeyError: 'Solar' when --breakdown-operation is enabled.
+    for report in reports:
+        missing_selected = [name for name in components if name not in report.grams]
+        if missing_selected:
+            raise ValueError(
+                f"{report.path.name}: selected component(s) were not created: "
+                + ", ".join(missing_selected)
+            )
+        report.grams = {name: report.grams[name] for name in components}
+
+    return reports, operation_breakdown_audit
 
 def wrap_label(value: str, width: int = 15) -> str:
     lines = []
@@ -629,7 +916,8 @@ def build_figure(reports: list[Report], *, unit: str = "kg", components=DEFAULT_
                  renewable_data: Mapping[str, RenewablePercentage] | None = None,
                  renewable_source: Path | None = None,
                  breakdown_order: Sequence[str] = ("smallest-to-largest",),
-                 carbon_intensity_data: CarbonIntensityData | None = None
+                 carbon_intensity_data: CarbonIntensityData | None = None,
+                 operation_breakdown_audit: Mapping | None = None
                  ) -> tuple[go.Figure, list[Report]]:
     """Single regular interval per report, country-only ticks, optional y2 line."""
     if not reports:
@@ -709,15 +997,15 @@ def build_figure(reports: list[Report], *, unit: str = "kg", components=DEFAULT_
             first_legend = component not in shown_legend
             shown_legend.add(component)
             fig.add_trace(go.Bar(
-                x=xs, y=ys, width=bar_width, name=COMPONENT_LABELS[component],
+                x=xs, y=ys, width=bar_width, name=component_label(component),
                 legendgroup=component, showlegend=first_legend,
                 legendrank=legend_rank[component],
-                marker=dict(color=COLORS[component],
+                marker=dict(color=component_color(component),
                             line=dict(color=OUTLINE, width=0.75)),
                 customdata=hover, cliponaxis=False,
                 hovertemplate=("<b>%{customdata[1]}</b><br>Folder/scenario: %{customdata[2]}"
                                "<br>File: %{customdata[0]}<br>"
-                               + COMPONENT_LABELS[component] + ": %{y:,.3f} " + unit + " CO\u2082e"
+                               + component_label(component) + ": %{y:,.3f} " + unit + " CO\u2082e"
                                + "<br>Displayed stack: %{customdata[3]:,.3f} " + unit
                                + " CO\u2082e<extra></extra>"),
             ))
@@ -773,8 +1061,7 @@ def build_figure(reports: list[Report], *, unit: str = "kg", components=DEFAULT_
                                font=dict(size=total_font, color="#333333"))
     full_component_set = set(components) in (set(DEFAULT_COMPONENTS),
                                               set(BREAKDOWN_COMPONENTS))
-    ytitle = ("Carbon emissions" if full_component_set else
-              " + ".join(COMPONENT_LABELS[c] for c in components))
+    ytitle = ("Emissions")
     fig.update_layout(
         template="none", width=width, height=height, barmode="stack", bargap=0, bargroupgap=0,
         paper_bgcolor="white", plot_bgcolor="white",
@@ -812,6 +1099,9 @@ def build_figure(reports: list[Report], *, unit: str = "kg", components=DEFAULT_
     if title:
         fig.update_layout(title=dict(text=html.escape(title), x=0.5, xanchor="center",
                                      y=0.98, yanchor="top", font=dict(size=font_size)))
+    if operation_breakdown_audit is not None:
+        fig.update_layout(meta={**(fig.layout.meta or {}),
+                                "operation_breakdown": dict(operation_breakdown_audit)})
     fig.update_layout(meta={**(fig.layout.meta or {}), "breakdown_stacking": {
         "mode_or_order": list(breakdown_order),
         "direction": "bottom-to-top",
@@ -850,6 +1140,8 @@ def save_outputs(fig: go.Figure, reports: list[Report], args: argparse.Namespace
         manifest["breakdown_stacking"] = fig.layout.meta["breakdown_stacking"]
     if fig.layout.meta and "carbon_intensity_overlay" in fig.layout.meta:
         manifest["carbon_intensity_overlay"] = fig.layout.meta["carbon_intensity_overlay"]
+    if fig.layout.meta and "operation_breakdown" in fig.layout.meta:
+        manifest["operation_breakdown"] = fig.layout.meta["operation_breakdown"]
     audit_path = Path(str(prefix) + ".data.json")
     audit_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Saved data/label audit: {audit_path}")
@@ -926,10 +1218,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
-        "--components", nargs="+", choices=ALL_COMPONENTS, default=None,
+        "--breakdown-operation", action="store_true",
         help=(
-            "categories to display; defaults to operation/fabrication/packaging, "
-            "or operation/GPA/EPA/MPA/packaging with --breakdown"
+            "replace aggregate operation emissions with Solar, Wind, Hydro, "
+            "Bioenergy, Nuclear, Coal, and Gas contributions derived from "
+            "the carbon-intensity source YAML"
+        ),
+    )
+    parser.add_argument(
+        "--components", nargs="+", default=None,
+        help=(
+            "categories to display. Available categories depend on --breakdown "
+            "and --breakdown-operation; omit this option to use all active categories"
         ),
     )
     parser.add_argument("--breakdown-order", nargs="+", default=["smallest-to-largest"],
@@ -964,36 +1264,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                              + DEFAULT_CARBON_INTENSITY_FILE.as_posix())
     args = parser.parse_args(argv)
 
-    allowed_components = BREAKDOWN_COMPONENTS if args.breakdown else DEFAULT_COMPONENTS
-    if args.components is None:
-        args.components = list(allowed_components)
-    else:
-        invalid_components = [name for name in args.components
-                              if name not in allowed_components]
-        if invalid_components:
-            mode = "--breakdown mode" if args.breakdown else "default mode"
-            parser.error(
-                f"components not available in {mode}: "
-                + ", ".join(invalid_components)
-                + "; choose from " + ", ".join(allowed_components)
-            )
+    # Active component names are finalized after loading the optional
+    # operation-source file, because future source files may add categories.
 
     if ((args.width is not None and args.width < 500) or args.height < 250
             or not 8 <= args.font_size <= 48):
         parser.error("use width >= 500, height >= 250, and font-size between 8 and 48")
     if not 0 < args.bar_width <= 1 or not 0 < args.scale <= 10:
         parser.error("bar-width must be in (0,1] and scale in (0,10]")
-    if len(set(args.components)) != len(args.components):
-        parser.error("components must not be repeated")
-    try:
-        resolve_breakdown_stacks([], args.components, args.breakdown_order)
-    except ValueError as exc:
-        parser.error(str(exc))
     if args.renewable_file is not None and not args.double_y_axis:
         parser.error("--renewable-file requires --double-y-axis")
-    if args.carbon_intensity_file is not None and args.carbon_intensity_mode is None:
-        parser.error("--carbon-intensity-file requires --carbon-intensity-normalized "
-                     "or --carbon-intensity-unnormalized")
+    if (args.carbon_intensity_file is not None
+            and args.carbon_intensity_mode is None
+            and not args.breakdown_operation):
+        parser.error(
+            "--carbon-intensity-file requires --breakdown-operation, "
+            "--carbon-intensity-normalized, or --carbon-intensity-unnormalized"
+        )
     if args.group_gap is not None:
         print("Note: --group-gap is deprecated and ignored; country bars are evenly spaced.",
               file=sys.stderr)
@@ -1002,15 +1289,47 @@ def main(argv: Sequence[str] | None = None) -> int:
         directories = discover_report_directories(args.directory)
         renewable_data = None
         carbon_intensity_data = None
-        if args.carbon_intensity_mode is not None:
+        operation_breakdown_data = None
+        if args.carbon_intensity_mode is not None or args.breakdown_operation:
             args.carbon_intensity_file = (args.carbon_intensity_file
                                           or DEFAULT_CARBON_INTENSITY_FILE)
+        if args.carbon_intensity_mode is not None:
             carbon_intensity_data = load_carbon_intensities(
                 args.carbon_intensity_file, args.carbon_intensity_mode,
+            )
+        if args.breakdown_operation:
+            operation_breakdown_data = load_operation_source_breakdowns(
+                args.carbon_intensity_file
             )
         if args.double_y_axis:
             args.renewable_file = resolve_renewable_file(args.renewable_file, args.directory)
             renewable_data = load_renewable_percentages(args.renewable_file)
+
+        operation_components = (
+            operation_breakdown_data.source_names
+            if operation_breakdown_data is not None else ("operation",)
+        )
+        fabrication_components = (
+            ("GPA", "EPA", "MPA") if args.breakdown else ("fabrication",)
+        )
+        allowed_components = tuple(operation_components) + tuple(fabrication_components) + ("packaging",)
+        if args.components is None:
+            args.components = list(allowed_components)
+        else:
+            invalid_components = [name for name in args.components
+                                  if name not in allowed_components]
+            if invalid_components:
+                parser.error(
+                    "components not available in the selected breakdown mode: "
+                    + ", ".join(invalid_components)
+                    + "; choose from " + ", ".join(allowed_components)
+                )
+        if len(set(args.components)) != len(args.components):
+            parser.error("components must not be repeated")
+        try:
+            resolve_breakdown_stacks([], args.components, args.breakdown_order)
+        except ValueError as exc:
+            parser.error(str(exc))
     except (OSError, ValueError, yaml.YAMLError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
@@ -1018,9 +1337,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     successful = True
     for directory in directories:
         try:
-            reports = load_reports(
+            reports, operation_breakdown_audit = load_reports(
                 directory, labels, args.include, args.skip_invalid,
                 breakdown=args.breakdown, components=args.components,
+                operation_breakdown_data=operation_breakdown_data,
             )
             fig, reports = build_figure(
                 reports, unit=args.unit, components=args.components, country_order=args.country_order,
@@ -1030,6 +1350,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 renewable_data=renewable_data, renewable_source=args.renewable_file,
                 breakdown_order=args.breakdown_order,
                 carbon_intensity_data=carbon_intensity_data,
+                operation_breakdown_audit=operation_breakdown_audit,
             )
             per_chart = argparse.Namespace(**vars(args))
             per_chart.directory = directory
@@ -1041,7 +1362,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("Plotting absolute emissions. Country labels:")
             print("Fabrication display: " +
                   ("GPA/EPA/MPA split" if args.breakdown else "aggregate fabrication"))
-            print("Breakdown stack order (bottom to top): " + " ".join(args.breakdown_order))
+            print("Operation display: " +
+                  ("generation-source split" if args.breakdown_operation
+                   else "aggregate operation"))
+#            print("Breakdown stack order (bottom to top): " + " ".join(args.breakdown_order))
             for report, tick in zip(reports, fig.layout.xaxis.ticktext):
                 print(f"  {report.path.name} -> {html.unescape(tick.replace('<br>', ' '))}")
             if args.double_y_axis:
@@ -1049,6 +1373,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             if carbon_intensity_data is not None:
                 print(f"Carbon intensity ({args.carbon_intensity_mode}): "
                       f"{args.carbon_intensity_file}")
+            if operation_breakdown_data is not None:
+                print(f"Operation source breakdown: {args.carbon_intensity_file}")
             print(f"Layout: {fig.layout.width} x {fig.layout.height} px, "
                   f"country label angle {fig.layout.xaxis.tickangle} degrees")
             if not save_outputs(fig, reports, per_chart):
