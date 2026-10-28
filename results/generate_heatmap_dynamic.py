@@ -1,51 +1,5 @@
 #!/usr/bin/env python3
 """ACT carbon heatmap: fabrication on x, operation on y.
-
-Requires Python 3.10+.
-Install: python -m pip install PyYAML "plotly>=6.1.1"
-Run:     python generate_heatmap_dynamic.py ./results --show
-
-The default is an 8 x 8 matrix, ordered on BOTH axes as:
-Taiwan, USA, China, Norway, France, Germany, UK, India.
-Rows run from top to bottom. Each cell is ONE report, not a combination of
-emissions taken from different files. Values are absolute kg CO2e by default.
-
-LOCATION LABELS
-  The recommended filenames are fab_Taiwan__op_Norway.yaml, etc.
-  Both role-first and country-first names work, in either axis order:
-    fab_Taiwan__op_Norway.yaml
-    operation_Norway_fabrication_Taiwan.yml
-    TaiwanFabricationNorwayOperation.yaml
-  Case, spaces, underscores, and hyphens are ignored in these tagged names.
-  Untagged names such as Taiwan_Norway.yaml are NOT guessed.
-
-  Alternatively, arbitrary filenames can use country-valued YAML fields:
-    fabrication_location / fabrication_country / fab_ci
-    operation_location   / operation_country   / op_ci
-  Use --fabrication-key and --operation-key for other fields (dot paths work).
-  Numeric carbon intensities do not identify countries and are not guessed.
-
-  An optional --labels locations.json explicitly overrides either axis:
-    {"report.yaml": {"fabrication": "Taiwan", "operation": "Norway"}}
-  Keys are paths relative to the results directory, using forward slashes.
-  Without an override, recognized YAML and filename labels must agree.
-  Labels never change the emissions or validate the simulation settings.
-
-EMISSIONS AND OUTPUTS
-  Reads total_carbon.operation, .fabrication, and .packaging just like the
-  supplied bar-chart script: bare numbers are grams; supported mass strings
-  are converted to grams; absent known components become zero; negative,
-  nonfinite, invalid, and nonzero unknown categories are rejected.
-  Defaults to all three components. --components selects a subset.
-  Duplicate pairs are errors. Missing pairs are errors unless --allow-missing
-  is set, which displays them as N/A, not zero. No averaging or interpolation.
-
-  Always writes a .matrix.csv and .data.json audit. HTML is the default chart
-  output and embeds Plotly for offline use. For static PNG/SVG/PDF export:
-    python -m pip install --upgrade "plotly>=6.1.1" "kaleido>=1"
-    plotly_get_chrome
-    python generate_heatmap_dynamic.py ./results --formats html png svg
-  Chrome/Chromium is needed only for static export, not HTML generation.
 """
 from __future__ import annotations
 
@@ -85,11 +39,11 @@ NUMBER_AND_UNIT = re.compile(
 COUNTRY_NAMES = {
     "taiwan": "Taiwan", "twn": "Taiwan", "tw": "Taiwan",
     "usa": "USA", "us": "USA", "unitedstates": "USA", "unitedstatesofamerica": "USA",
-    "uk": "UK", "gb": "UK", "gbr": "UK", "unitedkingdom": "UK", "greatbritain": "UK", "england": "UK",
+    "china": "China", "chn": "China", "cn": "China",
     "norway": "Norway", "nor": "Norway", "no": "Norway", "norwegian": "Norway",
     "france": "France", "fra": "France", "fr": "France",
     "germany": "Germany", "deu": "Germany", "de": "Germany",
-    "china": "China", "chn": "China", "cn": "China",
+    "uk": "UK", "gb": "UK", "gbr": "UK", "unitedkingdom": "UK", "greatbritain": "UK", "england": "UK",
     "india": "India", "ind": "India", "in": "India",
 }
 LOCATION_KEYS = {
@@ -272,15 +226,22 @@ def load_reports(directory: Path, labels: Mapping, patterns: Sequence[str], *,
     return reports
 
 
-def build_matrix(reports: Sequence[Report], *, countries: Sequence[str] = COUNTRIES,
+def build_matrix(reports: Sequence[Report], *, countries: Sequence[str] | None = None,
+                 x_countries: Sequence[str] | None = None,
+                 y_countries: Sequence[str] | None = None,
                  components: Sequence[str] = COMPONENTS, unit: str = "kg",
                  allow_missing: bool = False) -> tuple[list, dict, list]:
-    # This orientation is deliberate: matrix[operation_index][fabrication_index].
+    shared_order = tuple(countries if countries is not None else COUNTRIES)
+    x_countries = tuple(x_countries if x_countries is not None else shared_order)
+    y_countries = tuple(y_countries if y_countries is not None else shared_order)
     cells = {}
     for report in reports:
-        if report.fabrication not in countries or report.operation not in countries:
-            raise ValueError(f"{report.path.name}: location is outside --country-order; "
-                             "include that country or filter files with --include")
+        if report.fabrication not in x_countries:
+            raise ValueError(f"{report.path.name}: fabrication={report.fabrication} is outside "
+                             "--x-country-order; include that country or filter files with --include")
+        if report.operation not in y_countries:
+            raise ValueError(f"{report.path.name}: operation={report.operation} is outside "
+                             "--y-country-order; include that country or filter files with --include")
         pair = (report.operation, report.fabrication)
         if pair in cells:
             raise ValueError(
@@ -290,30 +251,32 @@ def build_matrix(reports: Sequence[Report], *, countries: Sequence[str] = COUNTR
                 "Reports are never silently summed, averaged, or overwritten."
             )
         cells[pair] = report
-    missing = [(operation, fabrication) for operation in countries for fabrication in countries
+    missing = [(operation, fabrication) for operation in y_countries for fabrication in x_countries
                if (operation, fabrication) not in cells]
     if missing and not allow_missing:
         sample = "\n".join(f"  fabrication={fab}, operation={op}" for op, fab in missing[:12])
         remainder = f"\n  ... and {len(missing) - 12} more" if len(missing) > 12 else ""
         raise ValueError(
-            f"missing {len(missing)} of {len(countries) ** 2} country pairs:\n{sample}{remainder}\n"
+            f"missing {len(missing)} of {len(x_countries) * len(y_countries)} country pairs:\n"
+            f"{sample}{remainder}\n"
             "Add the missing reports or use --allow-missing to show N/A cells (not zero)."
         )
     if missing:
         print(f"WARNING: {len(missing)} missing pair(s) will be N/A, not zero.", file=sys.stderr)
     divisor = UNIT_GRAMS[unit]
     matrix = [[cells[(op, fab)].displayed_grams(components) / divisor
-               if (op, fab) in cells else None for fab in countries] for op in countries]
+               if (op, fab) in cells else None for fab in x_countries] for op in y_countries]
     return matrix, cells, missing
 
 
 def build_figure(matrix: list, cells: Mapping, args: argparse.Namespace) -> go.Figure:
-    countries = args.country_order
+    x_countries = args.x_country_order
+    y_countries = args.y_country_order
     divisor = UNIT_GRAMS[args.unit]
     customdata, text = [], []
-    for i, operation in enumerate(countries):
+    for i, operation in enumerate(y_countries):
         custom_row, text_row = [], []
-        for j, fabrication in enumerate(countries):
+        for j, fabrication in enumerate(x_countries):
             report = cells.get((operation, fabrication))
             value = matrix[i][j]
             if report is None:
@@ -343,7 +306,7 @@ def build_figure(matrix: list, cells: Mapping, args: argparse.Namespace) -> go.F
     if lower == upper:
         lower, upper = 0.0, upper if upper > 0 else 1.0
     fig = go.Figure(go.Heatmap(
-        x=list(countries), y=list(countries), z=matrix,
+        x=list(x_countries), y=list(y_countries), z=matrix,
         text=text, texttemplate="" if args.no_cell_labels else "%{text}",
         textfont=dict(size=max(10, args.font_size - 4)),
         customdata=customdata, hovertemplate=hover,
@@ -360,17 +323,17 @@ def build_figure(matrix: list, cells: Mapping, args: argparse.Namespace) -> go.F
         title=dict(text=html.escape(args.title), x=0.5, xanchor="center"),
         hoverlabel=dict(font=dict(size=14)),
         xaxis=dict(title=dict(text="Fabrication location", standoff=20),
-                   type="category", categoryorder="array", categoryarray=list(countries),
-                   tickmode="array", tickvals=list(countries), tickangle=args.tick_angle,
+                   type="category", categoryorder="array", categoryarray=list(x_countries),
+                   tickmode="array", tickvals=list(x_countries), tickangle=args.tick_angle,
                    side="bottom", showgrid=False, zeroline=False, automargin=True),
         yaxis=dict(title=dict(text="Operation location", standoff=20),
-                   type="category", categoryorder="array", categoryarray=list(countries),
-                   tickmode="array", tickvals=list(countries), autorange="reversed",
+                   type="category", categoryorder="array", categoryarray=list(y_countries),
+                   tickmode="array", tickvals=list(y_countries), autorange="reversed",
                    showgrid=False, zeroline=False, automargin=True),
     )
     # Heatmap text is not drawn on gaps, so missing-cell labels are annotations.
-    for i, operation in enumerate(countries):
-        for j, fabrication in enumerate(countries):
+    for i, operation in enumerate(y_countries):
+        for j, fabrication in enumerate(x_countries):
             if matrix[i][j] is None:
                 fig.add_annotation(x=fabrication, y=operation, text="N/A", showarrow=False,
                                    font=dict(size=max(10, args.font_size - 4)))
@@ -386,8 +349,8 @@ def save_outputs(fig: go.Figure, reports: Sequence[Report], matrix: list,
     destination = Path(str(prefix) + ".matrix.csv")
     with destination.open("w", encoding="utf-8", newline="") as stream:
         writer = csv.writer(stream)
-        writer.writerow([f"Operation / Fabrication ({args.unit} CO2e)", *args.country_order])
-        for country, row in zip(args.country_order, matrix):
+        writer.writerow([f"Operation / Fabrication ({args.unit} CO2e)", *args.x_country_order])
+        for country, row in zip(args.y_country_order, matrix):
             writer.writerow([country, *("" if value is None else value for value in row)])
     print(f"Saved matrix: {destination}")
     manifest = {
@@ -395,8 +358,8 @@ def save_outputs(fig: go.Figure, reports: Sequence[Report], matrix: list,
         "display_unit": args.unit,
         "displayed_components": list(args.components),
         "matrix_orientation": "rows=operation (top to bottom); columns=fabrication (left to right)",
-        "operation_order": list(args.country_order),
-        "fabrication_order": list(args.country_order),
+        "operation_order": list(args.y_country_order),
+        "fabrication_order": list(args.x_country_order),
         "matrix": matrix,
         "missing_pairs": [{"fabrication": fab, "operation": op} for op, fab in missing],
         "labels_are_metadata_only_not_validation_of_simulation_settings": True,
@@ -448,7 +411,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--operation-key", help="country-valued YAML key; dot-separated nested paths work")
     parser.add_argument("--include", nargs="+", default=["*"], help="quoted filename or relative-path glob(s)")
     parser.add_argument("--recursive", action="store_true", help="also read YAML reports in subdirectories")
-    parser.add_argument("--country-order", nargs="+", default=list(COUNTRIES), help="order on both axes")
+    parser.add_argument("--country-order", nargs="+", default=None,
+                        help="default order for both axes; overridden by an axis-specific order")
+    parser.add_argument("--x-country-order", "--fabrication-order", nargs="+", default=None,
+                        help="fabrication countries from LEFT to RIGHT; overrides --country-order")
+    parser.add_argument("--y-country-order", "--operation-order", nargs="+", default=None,
+                        help="operation countries from TOP to BOTTOM; overrides --country-order")
     parser.add_argument("--components", nargs="+", choices=COMPONENTS, default=list(COMPONENTS),
                         help="categories to sum in each cell; defaults to all three")
     parser.add_argument("--allow-missing", action="store_true", help="show missing pairs as N/A instead of failing")
@@ -470,24 +438,35 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("decimals must be in [0,8] and scale in (0,10]")
     if len(set(args.components)) != len(args.components):
         parser.error("components must not be repeated")
-    countries = [country_name(value) for value in args.country_order]
-    if None in countries or len(set(countries)) != len(countries):
-        parser.error("country-order must contain unique supported countries: " + ", ".join(COUNTRIES))
-    args.country_order = countries
+    def checked_order(values: Sequence[str], argument: str) -> list[str]:
+        countries = [country_name(value) for value in values]
+        if None in countries or len(set(countries)) != len(countries):
+            parser.error(f"{argument} must contain unique supported countries: "
+                         + ", ".join(COUNTRIES))
+        return countries
+
+    args.country_order = checked_order(args.country_order or COUNTRIES, "--country-order")
+    args.x_country_order = checked_order(args.x_country_order or args.country_order,
+                                         "--x-country-order")
+    args.y_country_order = checked_order(args.y_country_order or args.country_order,
+                                         "--y-country-order")
     keys = {axis: (getattr(args, axis + "_key"),) if getattr(args, axis + "_key") else defaults
             for axis, defaults in LOCATION_KEYS.items()}
     try:
         reports = load_reports(args.directory, read_label_overrides(args.labels), args.include,
                                keys=keys, recursive=args.recursive, skip_invalid=args.skip_invalid)
-        matrix, cells, missing = build_matrix(reports, countries=args.country_order,
+        matrix, cells, missing = build_matrix(reports, x_countries=args.x_country_order,
+                                             y_countries=args.y_country_order,
                                              components=args.components, unit=args.unit,
                                              allow_missing=args.allow_missing)
         fig = build_figure(matrix, cells, args)
-        print(f"Plotting {len(reports)}/{len(countries) ** 2} pairs; absolute {args.unit} CO2e; "
+        print(f"Plotting {len(reports)}/{len(args.x_country_order) * len(args.y_country_order)} pairs; "
+              f"absolute {args.unit} CO2e; "
               f"components: {', '.join(args.components)}")
-        print("X = fabrication; Y = operation. Country order:", ", ".join(countries))
-        for operation in countries:
-            for fabrication in countries:
+        print("X = fabrication (left to right):", ", ".join(args.x_country_order))
+        print("Y = operation (top to bottom):", ", ".join(args.y_country_order))
+        for operation in args.y_country_order:
+            for fabrication in args.x_country_order:
                 report = cells.get((operation, fabrication))
                 if report is not None:
                     print(f"  {report.path.relative_to(args.directory).as_posix()} -> "
